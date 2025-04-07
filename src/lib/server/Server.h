@@ -130,16 +130,6 @@ public:
   Server &operator=(Server const &) = delete;
   Server &operator=(Server &&) = delete;
 
-#ifdef TEST_ENV
-  Server() : m_mock(true), m_config(nullptr)
-  {
-  }
-  void setActive(BaseClientProxy *active)
-  {
-    m_active = active;
-  }
-#endif
-
   //! @name manipulators
   //@{
 
