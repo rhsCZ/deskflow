@@ -57,13 +57,6 @@ public:
   // sending dragging information to server
   void sendDragInfo(uint32_t fileCount, const char *info, size_t size);
 
-#ifdef TEST_ENV
-  void handleDataForTest()
-  {
-    handleData(Event(), nullptr);
-  }
-#endif
-
 protected:
   enum EResult
   {
