@@ -46,7 +46,6 @@
 #if WINAPI_CARBON
 #include "base/TMethodJob.h"
 #include "mt/Thread.h"
-#include "platform/OSXDragSimulator.h"
 #include "platform/OSXScreen.h"
 #endif
 
@@ -244,7 +243,6 @@ void ClientApp::handleScreenError(const Event &, void *)
 deskflow::Screen *ClientApp::openClientScreen()
 {
   deskflow::Screen *screen = createScreen();
-  screen->setEnableDragDrop(argsBase().m_enableDragDrop);
   m_events->adoptHandler(
       EventTypes::ScreenError, screen->getEventTarget(),
       new TMethodEventJob<ClientApp>(this, &ClientApp::handleScreenError)
@@ -456,7 +454,6 @@ int ClientApp::mainLoop()
   OSXScreen *screen = dynamic_cast<OSXScreen *>(m_clientScreen->getPlatformScreen());
   screen->waitForCarbonLoop();
 
-  runCocoaApp();
 #else
   m_events->loop();
 #endif

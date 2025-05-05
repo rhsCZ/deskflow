@@ -32,8 +32,6 @@ if(WIN32)
     MSWindowsDebugOutputter.h
     MSWindowsDesks.cpp
     MSWindowsDesks.h
-    MSWindowsDropTarget.cpp
-    MSWindowsDropTarget.h
     MSWindowsEventQueueBuffer.cpp
     MSWindowsEventQueueBuffer.h
     MSWindowsHook.cpp
@@ -76,10 +74,6 @@ elseif(APPLE)
     OSXClipboardUTF8Converter.h
     OSXClipboardUTF16Converter.cpp
     OSXClipboardUTF16Converter.h
-    OSXDragSimulator.h
-    OSXDragSimulator.m
-    OSXDragView.h
-    OSXDragView.m
     OSXEventQueueBuffer.cpp
     OSXEventQueueBuffer.h
     OSXKeyState.cpp

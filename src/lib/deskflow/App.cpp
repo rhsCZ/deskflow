@@ -21,10 +21,6 @@
 #include "base/IEventQueue.h"
 #endif
 
-#if WINAPI_CARBON
-#include "platform/OSXDragSimulator.h"
-#endif
-
 #include <iostream>
 #include <stdexcept>
 #include <stdio.h>
@@ -194,12 +190,6 @@ void App::initApp(int argc, const char **argv)
 void App::runEventsLoop(void *)
 {
   m_events->loop();
-
-#if WINAPI_CARBON
-
-  stopCocoaLoop();
-
-#endif
 }
 
 //
