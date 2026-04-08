@@ -1337,6 +1337,14 @@ Enabling this setting will disable the server config GUI.</source>
         <source>Run command on exit</source>
         <translation type="unfinished">종료 시 명령 실행</translation>
     </message>
+    <message>
+        <source>If a Core process is already running when starting, ask it to stop so a new one can start.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop existing Core process on start</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>StatusBar</name>

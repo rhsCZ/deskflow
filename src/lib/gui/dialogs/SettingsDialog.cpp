@@ -130,6 +130,7 @@ void SettingsDialog::initConnections() const
   connect(ui->cbGuiDebug, &QCheckBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
   connect(ui->cbUseWlClipboard, &QCheckBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
   connect(ui->cbShowVersion, &QCheckBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
+  connect(ui->cbStopExistingCore, &QCheckBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
   connect(ui->cbRequireClientCert, &QCheckBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
   connect(ui->groupLogToFile, &QGroupBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
   connect(ui->groupService, &QGroupBox::toggled, this, &SettingsDialog::setButtonBoxEnabledButtons);
@@ -235,6 +236,7 @@ void SettingsDialog::accept()
   Settings::setValue(Settings::Log::GuiDebug, ui->cbGuiDebug->isChecked());
   Settings::setValue(Settings::Core::UseWlClipboard, ui->cbUseWlClipboard->isChecked());
   Settings::setValue(Settings::Gui::ShowVersionInTitle, ui->cbShowVersion->isChecked());
+  Settings::setValue(Settings::Gui::StopExistingCore, ui->cbStopExistingCore->isChecked());
   Settings::setValue(Settings::Core::EnableEnterCommand, ui->cbRunEnterCommand->isChecked());
   Settings::setValue(Settings::Core::EnableExitCommand, ui->cbRunExitCommand->isChecked());
   Settings::setValue(Settings::Core::ScreenEnterCommand, ui->lineCommandEnter->text());
@@ -262,6 +264,7 @@ void SettingsDialog::loadFromConfig()
   ui->cbGuiDebug->setChecked(Settings::value(Settings::Log::GuiDebug).toBool());
   ui->cbUseWlClipboard->setChecked(Settings::value(Settings::Core::UseWlClipboard).toBool());
   ui->cbShowVersion->setChecked(Settings::value(Settings::Gui::ShowVersionInTitle).toBool());
+  ui->cbStopExistingCore->setChecked(Settings::value(Settings::Gui::StopExistingCore).toBool());
   ui->cbRunEnterCommand->setChecked(Settings::value(Settings::Core::EnableEnterCommand).toBool());
   ui->cbRunExitCommand->setChecked(Settings::value(Settings::Core::EnableExitCommand).toBool());
   ui->lineCommandEnter->setText(Settings::value(Settings::Core::ScreenEnterCommand).toString());
@@ -432,6 +435,7 @@ bool SettingsDialog::isModified() const
       (ui->cbGuiDebug->isChecked() != Settings::value(Settings::Log::GuiDebug).toBool()) ||
       (ui->cbUseWlClipboard->isChecked() != Settings::value(Settings::Core::UseWlClipboard).toBool()) ||
       (ui->cbShowVersion->isChecked() != Settings::value(Settings::Gui::ShowVersionInTitle).toBool()) ||
+      (ui->cbStopExistingCore->isChecked() != Settings::value(Settings::Gui::StopExistingCore).toBool()) ||
       (ui->rbIconMono->isChecked() != Settings::value(Settings::Gui::SymbolicTrayIcon).toBool()) ||
       (ui->groupService->isChecked() != (processMode == Settings::ProcessMode::Service)) ||
       (ui->lineTlsCertPath->text() != Settings::value(Settings::Security::Certificate).toString()) ||
@@ -466,6 +470,7 @@ bool SettingsDialog::isDefault() const
       (ui->cbGuiDebug->isChecked() == Settings::defaultValue(Settings::Log::GuiDebug).toBool()) &&
       (ui->cbUseWlClipboard->isChecked() == Settings::defaultValue(Settings::Core::UseWlClipboard).toBool()) &&
       (ui->cbShowVersion->isChecked() == Settings::defaultValue(Settings::Gui::ShowVersionInTitle).toBool()) &&
+      (ui->cbStopExistingCore->isChecked() == Settings::defaultValue(Settings::Gui::StopExistingCore).toBool()) &&
       (ui->rbIconMono->isChecked() == Settings::defaultValue(Settings::Gui::SymbolicTrayIcon).toBool()) &&
       (ui->groupService->isChecked() == (processMode == Settings::ProcessMode::Service)) &&
       (ui->comboInterface->currentIndex() == 0) &&
@@ -493,6 +498,7 @@ void SettingsDialog::resetToDefault()
   ui->cbGuiDebug->setChecked(Settings::defaultValue(Settings::Log::GuiDebug).toBool());
   ui->cbUseWlClipboard->setChecked(Settings::defaultValue(Settings::Core::UseWlClipboard).toBool());
   ui->cbShowVersion->setChecked(Settings::defaultValue(Settings::Gui::ShowVersionInTitle).toBool());
+  ui->cbStopExistingCore->setChecked(Settings::defaultValue(Settings::Gui::StopExistingCore).toBool());
   ui->cbRunEnterCommand->setChecked(Settings::defaultValue(Settings::Core::EnableEnterCommand).toBool());
   ui->cbRunExitCommand->setChecked(Settings::defaultValue(Settings::Core::EnableExitCommand).toBool());
   ui->lineCommandEnter->setText(Settings::defaultValue(Settings::Core::ScreenEnterCommand).toString());

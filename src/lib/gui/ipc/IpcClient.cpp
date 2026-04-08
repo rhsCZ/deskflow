@@ -25,7 +25,7 @@ IpcClient::IpcClient(QObject *parent, const QString &socketName, const QString &
   connect(m_socket, &QLocalSocket::readyRead, this, &IpcClient::handleReadyRead);
 }
 
-void IpcClient::connectToServer()
+void IpcClient::connectToServer(bool skipHandshake)
 {
   if (m_state == State::Connecting) {
     qWarning().noquote() << QStringLiteral("%1 ipc client already connecting to server").arg(m_typeName);
@@ -43,6 +43,7 @@ void IpcClient::connectToServer()
     disconnectFromServer();
   }
 
+  m_skipHandshake = skipHandshake;
   m_retryCount = 0;
   attemptConnection();
 }
@@ -70,6 +71,12 @@ void IpcClient::attemptConnection()
   connect(
       m_socket, &QLocalSocket::connected, this,
       [this] {
+        if (m_skipHandshake) {
+          m_state = State::Connected;
+          qDebug().noquote() << QStringLiteral("%1 ipc client connected (handshake skipped)").arg(m_typeName);
+          Q_EMIT connected();
+          return;
+        }
         const auto versionId = QStringLiteral("%1+%2").arg(kVersion, kVersionGitSha);
         m_socket->write(QStringLiteral("hello=%1\n").arg(versionId).toUtf8());
         qDebug().noquote() << QStringLiteral("%1 ipc client sent hello with version: %2").arg(m_typeName, versionId);
@@ -149,6 +156,13 @@ void IpcClient::handleReadyRead()
     if (m_state == State::Connecting) {
       handleHandshakeMessage(parts);
       continue;
+    }
+
+    if (parts.at(0) == QStringLiteral("bye")) {
+      qDebug().noquote() << QStringLiteral("%1 ipc server is shutting down").arg(m_typeName);
+      disconnectFromServer();
+      Q_EMIT serverShutdown();
+      return;
     }
 
     processCommand(parts.at(0), parts);
