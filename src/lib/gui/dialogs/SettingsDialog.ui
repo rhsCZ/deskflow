@@ -818,6 +818,16 @@
         </spacer>
        </item>
        <item>
+        <widget class="QCheckBox" name="cbStopExistingCore">
+         <property name="text">
+          <string>Stop existing Core process on start</string>
+         </property>
+         <property name="toolTip">
+          <string>If a Core process is already running when starting, ask it to stop so a new one can start.</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupService">
          <property name="enabled">
           <bool>true</bool>

@@ -144,6 +144,26 @@ void CoreProcess::daemonIpcClientConnected()
   m_daemonIpcClient->requestLogPath();
 }
 
+void CoreProcess::stopExistingProcess()
+{
+  qInfo("asking existing core to stop");
+
+  auto *client = new ipc::CoreIpcClient(this);
+  connect(client, &ipc::CoreIpcClient::connected, this, [client] { client->sendStop(); });
+  connect(client, &ipc::CoreIpcClient::serverShutdown, this, [this, client] {
+    qInfo("existing core stopped successfully");
+    client->deleteLater();
+    setProcessState(ProcessState::RetryPending);
+    m_retryTimer.setSingleShot(true);
+    m_retryTimer.start(kRetryDelay);
+  });
+  connect(client, &ipc::CoreIpcClient::connectionFailed, this, [client] {
+    qCritical("could not contact existing core to stop it");
+    client->deleteLater();
+  });
+  client->connectToServer(true);
+}
+
 void CoreProcess::onProcessFinished(int exitCode, QProcess::ExitStatus)
 {
   using enum ProcessState;
@@ -155,10 +175,15 @@ void CoreProcess::onProcessFinished(int exitCode, QProcess::ExitStatus)
 
   if (exitCode != s_exitSuccess) {
     setProcessState(Stopped);
-    if (exitCode == s_exitDuplicate)
-      qWarning("desktop process is already running");
-    else
+    if (exitCode == s_exitDuplicate) {
+      if (Settings::value(Settings::Gui::StopExistingCore).toBool()) {
+        stopExistingProcess();
+        return;
+      }
+      qCritical("cannot start core, desktop process is already running");
+    } else {
       qWarning("desktop process exited with code: %d", exitCode);
+    }
     return;
   }
 
@@ -398,9 +423,14 @@ void CoreProcess::start(std::optional<ProcessMode> processModeOption)
 
           m_coreIpcClient = new ipc::CoreIpcClient(this);
           connect(m_coreIpcClient, &ipc::CoreIpcClient::commandReceived, this, &CoreProcess::onCoreIpcMessageReceived);
-          connect(m_coreIpcClient, &ipc::CoreIpcClient::connected, this, [] { qInfo("connected to core ipc server"); });
+          connect(m_coreIpcClient, &ipc::CoreIpcClient::connected, this, [] {
+            qDebug("connected to core ipc server");
+          });
           connect(m_coreIpcClient, &ipc::CoreIpcClient::connectionFailed, this, [] {
             qWarning("failed to establish core ipc connection");
+          });
+          connect(m_coreIpcClient, &ipc::CoreIpcClient::serverShutdown, this, [] {
+            qDebug("core ipc server shut down cleanly");
           });
 
           m_coreIpcClient->connectToServer();

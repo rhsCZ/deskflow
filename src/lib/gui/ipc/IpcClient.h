@@ -27,7 +27,7 @@ class IpcClient : public QObject
 
 public:
   explicit IpcClient(QObject *parent, const QString &socketName, const QString &typeName);
-  void connectToServer();
+  void connectToServer(bool skipHandshake = false);
   void disconnectFromServer();
 
   bool isConnected() const
@@ -38,6 +38,7 @@ public:
 Q_SIGNALS:
   void connected();
   void connectionFailed();
+  void serverShutdown();
 
 private Q_SLOTS:
   void handleDisconnected();
@@ -63,6 +64,7 @@ private:
   QByteArray m_readBuffer;
   int m_retryCount{0};
   QString m_typeName;
+  bool m_skipHandshake{false};
 };
 
 } // namespace deskflow::gui::ipc
