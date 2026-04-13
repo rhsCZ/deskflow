@@ -119,6 +119,10 @@ private:
   static QString processStateToString(const CoreProcess::ProcessState state);
   static QString wrapIpv6(const QString &address);
 
+#ifdef Q_OS_WIN
+  static bool writeDaemonProcessConfig(const QString &command, bool elevate);
+#endif
+
   const ServerConfig &m_serverConfig;
   QString m_address;
   ProcessState m_processState = ProcessState::Stopped;

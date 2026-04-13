@@ -10,6 +10,7 @@
 #include "common/ExitCodes.h"
 #include "common/I18N.h"
 #include "common/PlatformInfo.h"
+#include "common/Settings.h"
 #include "common/UrlConstants.h"
 #include "common/VersionInfo.h"
 #include "gui/Diagnostic.h"
@@ -19,8 +20,10 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDir>
 #include <QLocalSocket>
 #include <QMessageBox>
+#include <QSettings>
 #include <QSharedMemory>
 
 #if defined(Q_OS_MACOS)
@@ -70,12 +73,19 @@ int main(int argc, char *argv[])
   auto helpOption = QCommandLineOption({"h", "help"}, "Display Help on the command line");
   auto versionOption = QCommandLineOption({"v", "version"}, "Display version information");
   auto resetOption = QCommandLineOption("reset", "Reset all settings");
+  auto writeDaemonConfigOption =
+      QCommandLineOption("write-daemon-config", "Write daemon process config and exit");
+  auto daemonCommandOption = QCommandLineOption("daemon-command", "Command for daemon process", "command");
+  auto daemonElevateOption = QCommandLineOption("daemon-elevate", "Elevate daemon process", "elevate");
 
   QCommandLineParser parser;
   parser.setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
   parser.addOption(helpOption);
   parser.addOption(versionOption);
   parser.addOption(resetOption);
+  parser.addOption(writeDaemonConfigOption);
+  parser.addOption(daemonCommandOption);
+  parser.addOption(daemonElevateOption);
   parser.parse(QCoreApplication::arguments());
 
   if (!parser.errorText().isEmpty()) {
@@ -91,6 +101,15 @@ int main(int argc, char *argv[])
 
   if (parser.isSet(versionOption)) {
     QTextStream(stdout) << kHeader << kCopyright << Qt::endl;
+    return s_exitSuccess;
+  }
+
+  if (parser.isSet(writeDaemonConfigOption)) {
+    QDir().mkpath(Settings::SystemDir);
+    QSettings config(QStringLiteral("%1/%2").arg(Settings::SystemDir, kDaemonConfigFilename), QSettings::IniFormat);
+    config.setValue("command", parser.value(daemonCommandOption));
+    config.setValue("elevate", parser.value(daemonElevateOption) == "yes");
+    config.sync();
     return s_exitSuccess;
   }
 

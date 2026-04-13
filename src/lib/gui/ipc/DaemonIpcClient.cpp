@@ -21,11 +21,8 @@ void DaemonIpcClient::sendLogLevel(const QString &logLevel)
   sendMessage(QStringLiteral("logLevel=%1").arg(logLevel));
 }
 
-void DaemonIpcClient::sendStartProcess(const QString &command, bool elevate)
+void DaemonIpcClient::sendStartProcess()
 {
-  const auto elevateStr = elevate ? QStringLiteral("yes") : QStringLiteral("no");
-  sendMessage(QStringLiteral("elevate=%1").arg(elevateStr));
-  sendMessage(QStringLiteral("command=%1").arg(command));
   sendMessage(QStringLiteral("start"));
 }
 

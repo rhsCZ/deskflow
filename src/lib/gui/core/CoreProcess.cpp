@@ -20,6 +20,11 @@
 #include <sys/prctl.h>
 #endif
 
+#ifdef Q_OS_WIN
+#include <Shellapi.h>
+#include <Windows.h>
+#endif
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -214,31 +219,6 @@ void CoreProcess::startForegroundProcess(const QStringList &args)
   }
 }
 
-void CoreProcess::startProcessFromDaemon(const QStringList &args)
-{
-  if (m_processState != ProcessState::Starting) {
-    qFatal("core process must be in starting state");
-  }
-
-  QString commandQuoted = makeQuotedArgs(m_appPath, args);
-  qInfo("running command: %s", qPrintable(commandQuoted));
-
-  auto sendStart = [this, commandQuoted] {
-    m_daemonIpcClient->sendStartProcess(commandQuoted, Settings::value(Settings::Daemon::Elevate).toBool());
-    setProcessState(ProcessState::Started);
-  };
-
-  if (m_daemonIpcClient->isConnected()) {
-    sendStart();
-  } else {
-    connect(
-        m_daemonIpcClient, &ipc::DaemonIpcClient::connected, this, sendStart,
-        static_cast<Qt::ConnectionType>(Qt::SingleShotConnection | Qt::QueuedConnection)
-    );
-    m_daemonIpcClient->connectToServer();
-  }
-}
-
 void CoreProcess::stopForegroundProcess() const
 {
   if (m_processState != ProcessState::Stopping) {
@@ -411,9 +391,15 @@ void CoreProcess::start(std::optional<ProcessMode> processModeOption)
 
   if (processMode == ProcessMode::Desktop) {
     startForegroundProcess(args);
-  } else if (processMode == ProcessMode::Service) {
+  }
+
+  else if (processMode == ProcessMode::Service) {
+#ifdef Q_OS_WIN
     args.append({QStringLiteral("--settings"), Settings::settingsFile()});
     startProcessFromDaemon(args);
+#else
+    qFatal("service mode is only supported on windows");
+#endif
   }
 
   m_lastProcessMode = processMode;
@@ -632,5 +618,69 @@ void CoreProcess::retryDaemon()
 {
   m_daemonIpcClient->connectToServer();
 }
+
+#ifdef Q_OS_WIN
+void CoreProcess::startProcessFromDaemon(const QStringList &args)
+{
+  if (m_processState != ProcessState::Starting) {
+    qFatal("core process must be in starting state");
+  }
+
+  QString commandQuoted = makeQuotedArgs(m_appPath, args);
+  qInfo("running command: %s", qPrintable(commandQuoted));
+
+  bool elevate = Settings::value(Settings::Daemon::Elevate).toBool();
+  const auto lastCommand = Settings::value(Settings::Daemon::Command).toString();
+  if (commandQuoted != lastCommand) {
+    if (!writeDaemonProcessConfig(commandQuoted, elevate)) {
+      setProcessState(ProcessState::Stopped);
+      Q_EMIT error(Error::StartFailed);
+      return;
+    }
+  }
+
+  auto sendStart = [this] {
+    m_daemonIpcClient->sendStartProcess();
+    setProcessState(ProcessState::Started);
+  };
+
+  if (m_daemonIpcClient->isConnected()) {
+    sendStart();
+  } else {
+    connect(
+        m_daemonIpcClient, &ipc::DaemonIpcClient::connected, this, sendStart,
+        static_cast<Qt::ConnectionType>(Qt::SingleShotConnection | Qt::QueuedConnection)
+    );
+    m_daemonIpcClient->connectToServer();
+  }
+}
+
+bool CoreProcess::writeDaemonProcessConfig(const QString &command, bool elevate)
+{
+  const auto guiPath = QCoreApplication::applicationFilePath();
+  const auto elevateStr = elevate ? QStringLiteral("yes") : QStringLiteral("no");
+  const auto params = QStringLiteral("--write-daemon-config --daemon-command \"%1\" --daemon-elevate %2")
+                          .arg(QString(command).replace("\"", "\\\""), elevateStr);
+
+  SHELLEXECUTEINFOW sei = {};
+  sei.cbSize = sizeof(sei);
+  sei.lpVerb = L"runas";
+  sei.lpFile = reinterpret_cast<LPCWSTR>(guiPath.utf16());
+  sei.lpParameters = reinterpret_cast<LPCWSTR>(params.utf16());
+  sei.nShow = SW_HIDE;
+  sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+
+  if (!ShellExecuteExW(&sei)) {
+    qWarning("failed to launch elevated config writer (user may have cancelled uac)");
+    return false;
+  }
+
+  WaitForSingleObject(sei.hProcess, INFINITE);
+  CloseHandle(sei.hProcess);
+
+  Settings::setValue(Settings::Daemon::Command, command);
+  return true;
+}
+#endif
 
 } // namespace deskflow::gui
