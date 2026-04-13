@@ -27,10 +27,6 @@ void DaemonIpcServer::processCommand(QLocalSocket *clientSocket, const QString &
 {
   if (command == QStringLiteral("logLevel")) {
     processLogLevel(clientSocket, parts);
-  } else if (command == QStringLiteral("elevate")) {
-    processElevate(clientSocket, parts);
-  } else if (command == QStringLiteral("command")) {
-    processCommandMessage(clientSocket, parts);
   } else if (command == QStringLiteral("start")) {
     LOG_DEBUG("daemon ipc server got start message");
     Q_EMIT startProcessRequested();
@@ -68,46 +64,6 @@ void DaemonIpcServer::processLogLevel(QLocalSocket *&clientSocket, const QString
 
   LOG_DEBUG("daemon ipc server got new log level: %s", logLevel.toUtf8().constData());
   Q_EMIT logLevelChanged(logLevel);
-  writeToClientSocket(clientSocket, kAckMessage);
-}
-
-void DaemonIpcServer::processElevate(QLocalSocket *&clientSocket, const QStringList &messageParts)
-{
-  if (messageParts.size() < 2) {
-    LOG_ERR("daemon ipc server got invalid elevate message");
-    writeToClientSocket(clientSocket, kErrorMessage);
-    return;
-  }
-
-  const auto &elevate = messageParts.at(1);
-  if (elevate != QStringLiteral("yes") && elevate != QStringLiteral("no")) {
-    LOG_ERR("daemon ipc server got invalid elevate value: %s", elevate.toUtf8().constData());
-    writeToClientSocket(clientSocket, kErrorMessage);
-    return;
-  }
-
-  LOG_DEBUG("daemon ipc server got new elevate value: %s", elevate.toUtf8().constData());
-  Q_EMIT elevateModeChanged(elevate == QStringLiteral("yes"));
-  writeToClientSocket(clientSocket, kAckMessage);
-}
-
-void DaemonIpcServer::processCommandMessage(QLocalSocket *&clientSocket, const QStringList &messageParts)
-{
-  if (messageParts.size() < 2) {
-    LOG_ERR("daemon ipc server got invalid command message");
-    writeToClientSocket(clientSocket, kErrorMessage);
-    return;
-  }
-
-  const auto &command = messageParts.at(1);
-  if (command.isEmpty()) {
-    LOG_ERR("daemon ipc server got empty command");
-    writeToClientSocket(clientSocket, kErrorMessage);
-    return;
-  }
-
-  LOG_DEBUG("daemon ipc server got new command: %s", command.toUtf8().constData());
-  Q_EMIT commandChanged(command);
   writeToClientSocket(clientSocket, kAckMessage);
 }
 

@@ -27,7 +27,7 @@
 
 #endif
 
-#include <string>
+#include <QSettings>
 
 using namespace deskflow::core;
 
@@ -45,39 +45,36 @@ void DaemonApp::saveLogLevel(const QString &logLevel) const
   Settings::setValue(Settings::Daemon::LogLevel, logLevel);
 }
 
-void DaemonApp::setElevate(bool elevate)
-{
-  LOG_DEBUG("elevate value changed: %s", elevate ? "yes" : "no");
-  m_elevate = elevate;
-  Settings::setValue(Settings::Daemon::Elevate, m_elevate);
-}
-
-void DaemonApp::setCommand(const QString &command)
-{
-  LOG_DEBUG("service command updated");
-  Settings::setValue(Settings::Daemon::Command, command);
-  m_command = command.toStdString();
-}
-
 void DaemonApp::applyWatchdogCommand() const
 {
-  LOG_DEBUG("applying watchdog command");
-
 #if defined(Q_OS_WIN)
-  m_pWatchdog->setProcessConfig(m_command, m_elevate);
+  const auto configPath = QStringLiteral("%1/%2").arg(Settings::SystemDir, kDaemonConfigFilename);
+  QSettings config(configPath, QSettings::IniFormat);
+  const auto command = config.value("command").toString().toStdString();
+  const auto elevate = config.value("elevate").toBool();
+
+  if (command.empty()) {
+    LOG_WARN("daemon process config has no command");
+    return;
+  }
+
+  LOG_DEBUG("applying watchdog command from config");
+  m_pWatchdog->setProcessConfig(command, elevate);
 #else
   LOG_ERR("applying watchdog command not implemented on this platform");
 #endif
 }
 
-void DaemonApp::clearWatchdogCommand()
+void DaemonApp::clearWatchdogCommand() const
 {
   LOG_DEBUG("clearing watchdog command");
 
-  // Clear the setting to prevent it from being next time the daemon starts.
-  setCommand("");
-
 #if defined(Q_OS_WIN)
+  QSettings config(QStringLiteral("%1/%2").arg(Settings::SystemDir, kDaemonConfigFilename), QSettings::IniFormat);
+  config.remove("command");
+  config.remove("elevate");
+  config.sync();
+
   m_pWatchdog->setProcessConfig("", false);
 #else
   LOG_ERR("clearing watchdog command not implemented on this platform");
@@ -87,10 +84,12 @@ void DaemonApp::clearWatchdogCommand()
 void DaemonApp::clearSettings() const
 {
   LOG_INFO("clearing daemon settings");
-  Settings::setValue(Settings::Daemon::Command);
-  Settings::setValue(Settings::Daemon::Elevate);
   Settings::setValue(Settings::Daemon::LogFile);
   Settings::setValue(Settings::Daemon::LogLevel);
+
+  QSettings config(QStringLiteral("%1/%2").arg(Settings::SystemDir, kDaemonConfigFilename), QSettings::IniFormat);
+  config.clear();
+  config.sync();
 }
 
 void DaemonApp::connectIpcServer(const ipc::DaemonIpcServer *ipcServer) const
@@ -98,8 +97,6 @@ void DaemonApp::connectIpcServer(const ipc::DaemonIpcServer *ipcServer) const
   // Use direct connection as this object is on it's own thread,
   // and so is on a different event loop to the main Qt loop.
   connect(ipcServer, &ipc::DaemonIpcServer::logLevelChanged, this, &DaemonApp::saveLogLevel, Qt::DirectConnection);
-  connect(ipcServer, &ipc::DaemonIpcServer::elevateModeChanged, this, &DaemonApp::setElevate, Qt::DirectConnection);
-  connect(ipcServer, &ipc::DaemonIpcServer::commandChanged, this, &DaemonApp::setCommand, Qt::DirectConnection);
   connect(
       ipcServer, &ipc::DaemonIpcServer::startProcessRequested, this, &DaemonApp::applyWatchdogCommand,
       Qt::DirectConnection
@@ -139,8 +136,9 @@ void DaemonApp::run(QThread &daemonThread)
 #if defined(Q_OS_WIN)
   m_pWatchdog = std::make_unique<MSWindowsWatchdog>(m_foreground, *m_pFileLogOutputter);
 
-  auto command = Settings::value(Settings::Daemon::Command).toString().toStdString();
-  bool elevate = Settings::value(Settings::Daemon::Elevate).toBool();
+  QSettings config(QStringLiteral("%1/%2").arg(Settings::SystemDir, kDaemonConfigFilename), QSettings::IniFormat);
+  auto command = config.value("command").toString().toStdString();
+  bool elevate = config.value("elevate").toBool();
   if (!command.empty()) {
     LOG_DEBUG("using last known command: %s", command.c_str());
     m_pWatchdog->setProcessConfig(command, elevate);
