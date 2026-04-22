@@ -12,9 +12,9 @@
 #include "base/Log.h"
 #include "base/LogOutputters.h"
 #include "common/ExitCodes.h"
-#include "common/PlatformInfo.h"
 #include "common/Settings.h"
 #include "deskflow/DeskflowException.h"
+#include "mt/ThreadException.h"
 
 #if defined(Q_OS_WIN)
 #include "base/IEventQueue.h"
@@ -109,7 +109,7 @@ void App::run(QThread &coreThread)
     if (result == s_exitSuccess) {
       LOG_INFO("core stopped successfully");
     } else {
-      // TODO: surface error code to main thread somehow
+      updateExitCode(result);
       LOG_ERR("core stopped with error code: %d", result);
     }
 
@@ -170,5 +170,8 @@ void App::handleScreenError() const
 
 void App::runEventsLoop(const void *)
 {
-  m_events->loop();
+  int exitCode = m_events->loop();
+  if (exitCode != s_exitSuccess) {
+    throw ThreadExitException(new LoopErrorCode(exitCode));
+  }
 }
