@@ -125,21 +125,11 @@ void DaemonApp::clearSettings()
 
 void DaemonApp::connectIpcServer(const ipc::DaemonIpcServer *ipcServer) const
 {
-  // Use direct connection as this object is on it's own thread,
-  // and so is on a different event loop to the main Qt loop.
-  connect(ipcServer, &ipc::DaemonIpcServer::logLevelChanged, this, &DaemonApp::saveLogLevel, Qt::DirectConnection);
-  connect(ipcServer, &ipc::DaemonIpcServer::configFileChanged, this, &DaemonApp::setConfigFile, Qt::DirectConnection);
-  connect(
-      ipcServer, &ipc::DaemonIpcServer::startProcessRequested, this, &DaemonApp::applyWatchdogCommand,
-      Qt::DirectConnection
-  );
-  connect(
-      ipcServer, &ipc::DaemonIpcServer::stopProcessRequested, this, &DaemonApp::clearWatchdogCommand,
-      Qt::DirectConnection
-  );
-  connect(
-      ipcServer, &ipc::DaemonIpcServer::clearSettingsRequested, this, &DaemonApp::clearSettings, Qt::DirectConnection
-  );
+  connect(ipcServer, &ipc::DaemonIpcServer::logLevelChanged, this, &DaemonApp::saveLogLevel);
+  connect(ipcServer, &ipc::DaemonIpcServer::configFileChanged, this, &DaemonApp::setConfigFile);
+  connect(ipcServer, &ipc::DaemonIpcServer::startProcessRequested, this, &DaemonApp::applyWatchdogCommand);
+  connect(ipcServer, &ipc::DaemonIpcServer::stopProcessRequested, this, &DaemonApp::clearWatchdogCommand);
+  connect(ipcServer, &ipc::DaemonIpcServer::clearSettingsRequested, this, &DaemonApp::clearSettings);
 }
 
 void DaemonApp::run(QThread &daemonThread)
