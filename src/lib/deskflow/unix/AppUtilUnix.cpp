@@ -8,6 +8,7 @@
 #include "deskflow/unix/AppUtilUnix.h"
 
 #include "base/Log.h"
+#include "common/PlatformInfo.h"
 
 #if WINAPI_XWINDOWS
 #include "deskflow/unix/X11LayoutsParser.h"
@@ -86,6 +87,9 @@ std::vector<std::string> AppUtilUnix::getKeyboardLayoutList()
 std::string AppUtilUnix::getCurrentLanguageCode()
 {
   std::string result = "";
+  if (deskflow::platform::isWayland())
+    return result;
+
 #if WINAPI_XWINDOWS
 
   auto display = XOpenDisplay(nullptr);
