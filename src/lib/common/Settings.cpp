@@ -218,6 +218,11 @@ QSettingsProxy &Settings::proxy()
   return *instance()->m_settingsProxy;
 }
 
+NetworkProtocol Settings::networkProtocol()
+{
+  return networkProtocolFromString(Settings::value(Server::Protocol).toString());
+}
+
 void Settings::save(bool emitSaving)
 {
   if (emitSaving)

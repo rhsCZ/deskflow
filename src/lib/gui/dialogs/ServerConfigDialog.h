@@ -99,7 +99,7 @@ private:
   std::unique_ptr<Ui::ServerConfigDialog> ui;
   QString m_message = "";
   ServerConfig &m_originalServerConfig;
-  NetworkProtocol m_originalProtocol;
+  NetworkProtocol m_protocol;
   bool m_originalServerConfigIsExternal;
   QString m_originalServerConfigUsesExternalFile;
   ServerConfig m_serverConfig;
