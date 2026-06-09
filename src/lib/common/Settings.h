@@ -12,6 +12,7 @@
 #include <QDir>
 
 #include "common/Constants.h"
+#include "common/NetworkProtocol.h"
 #include "common/QSettingsProxy.h"
 
 class Settings : public QObject
@@ -149,6 +150,7 @@ public:
   static QString tlsTrustedClientsDb();
   static QString logLevelText();
   static QSettingsProxy &proxy();
+  static NetworkProtocol networkProtocol();
   static void save(bool emitSaving = true);
   static QStringList validKeys();
   static QString portableSettingsFile();
