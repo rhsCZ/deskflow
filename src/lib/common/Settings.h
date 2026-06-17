@@ -104,6 +104,7 @@ public:
   };
   struct Server
   {
+    inline static const auto ClipboardSize = QStringLiteral("server/clipboardSize");
     inline static const auto DefaultLockToComputerState = QStringLiteral("server/defaultLockToComputerState");
     inline static const auto DisableLockToComputer = QStringLiteral("server/disableLockToComputer");
     inline static const auto EnableClipboard = QStringLiteral("server/enableClipboard");
@@ -254,6 +255,7 @@ private:
     , Settings::Security::CheckPeers
     , Settings::Security::KeySize
     , Settings::Security::TlsEnabled
+    , Settings::Server::ClipboardSize
     , Settings::Server::DefaultLockToComputerState
     , Settings::Server::DisableLockToComputer
     , Settings::Server::EnableClipboard
@@ -326,6 +328,7 @@ private:
       QStringLiteral("internalConfig/defaultLockToScreenState")
     , QStringLiteral("internalConfig/disableLockToScreen")
     , QStringLiteral("internalConfig/clipboardSharing")
+    , QStringLiteral("internalConfig/clipboardSharingSize")
     , QStringLiteral("internalConfig/hasHeartbeat")
     , QStringLiteral("internalConfig/hasSwitchDelay")
     , QStringLiteral("internalConfig/hasSwitchDoubleTap")
