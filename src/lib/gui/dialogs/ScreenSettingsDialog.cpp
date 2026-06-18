@@ -95,7 +95,8 @@ void ScreenSettingsDialog::accept()
       );
       return;
     }
-    m_screen->addAlias(alias);
+    if (!m_screen->aliases().contains(alias))
+      m_screen->addAlias(alias);
   }
 
   m_screen->setModifier(Shift, ui->comboShift->currentIndex());
