@@ -85,6 +85,8 @@ void ScreenSettingsDialog::accept()
 
   m_screen->setName(ui->lineNameEdit->text());
 
+  m_screen->aliases().clear();
+
   for (int i = 0; i < ui->listAliases->count(); i++) {
     QString alias(ui->listAliases->item(i)->text());
     if (alias == ui->lineNameEdit->text()) {
