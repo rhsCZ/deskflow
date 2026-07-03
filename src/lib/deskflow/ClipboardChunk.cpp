@@ -14,20 +14,12 @@
 #include <cstring>
 #include <limits>
 
-size_t ClipboardChunk::s_expectedSize = 0;
-
 namespace {
 
 void clearCachedData(std::string &dataCached)
 {
   dataCached.clear();
   dataCached.shrink_to_fit();
-}
-
-void resetAssembly(ClipboardChunkAssemblyState &state, std::string &dataCached)
-{
-  state = {};
-  clearCachedData(dataCached);
 }
 
 bool wouldExceed(size_t currentSize, size_t extraSize, size_t limit)
@@ -93,8 +85,8 @@ TransferState ClipboardChunk::assemble(
   uint8_t mark;
   std::string data;
   auto reset = [&]() {
-    s_expectedSize = 0;
-    resetAssembly(state, dataCached);
+    state = {};
+    clearCachedData(dataCached);
   };
 
   if (!ProtocolUtil::readf(stream, kMsgDClipboard + 4, &id, &sequence, &mark, &data)) {
@@ -103,7 +95,7 @@ TransferState ClipboardChunk::assemble(
   }
 
   if (id >= kClipboardEnd) {
-    LOG_ERR("clipboard transmission failed: invalid clipboard id=%d", id);
+    LOG_ERR("clipboard chunk invalid id: %d", id);
     reset();
     return Error;
   }
@@ -112,7 +104,7 @@ TransferState ClipboardChunk::assemble(
     bool ok = false;
     const auto expected = QString::fromStdString(data).toULongLong(&ok);
     if (!ok || expected > std::numeric_limits<size_t>::max()) {
-      LOG_ERR("clipboard transmission failed: invalid size header=\"%s\"", data.c_str());
+      LOG_ERR("clipboard invalid size header: %s", data.c_str());
       reset();
       return Error;
     }
@@ -120,12 +112,9 @@ TransferState ClipboardChunk::assemble(
     clearCachedData(dataCached);
     state.expectedSize = static_cast<size_t>(expected);
     state.active = true;
-    s_expectedSize = state.expectedSize;
 
     if (state.expectedSize > maxDataSize) {
-      LOG_ERR(
-          "clipboard transmission failed: expected size=%zu exceeds maximum size=%zu", state.expectedSize, maxDataSize
-      );
+      LOG_ERR("clipboard size exceeds limit, size: %zu, limit: %zu", state.expectedSize, maxDataSize);
       reset();
       return Error;
     }
@@ -134,24 +123,15 @@ TransferState ClipboardChunk::assemble(
     return Started;
   } else if (mark == ChunkType::DataChunk) {
     if (!state.active) {
-      LOG_ERR("clipboard transmission failed: data chunk received before start");
+      LOG_ERR("clipboard data chunk before start");
       reset();
       return Error;
     }
 
     if (wouldExceed(dataCached.size(), data.size(), state.expectedSize)) {
       LOG_ERR(
-          "clipboard transmission failed: actual size=%zu exceeds expected size=%zu", dataCached.size() + data.size(),
+          "clipboard size exceeds declared, size: %zu, declared: %zu", dataCached.size() + data.size(),
           state.expectedSize
-      );
-      reset();
-      return Error;
-    }
-
-    if (wouldExceed(dataCached.size(), data.size(), maxDataSize)) {
-      LOG_ERR(
-          "clipboard transmission failed: actual size=%zu exceeds maximum size=%zu", dataCached.size() + data.size(),
-          maxDataSize
       );
       reset();
       return Error;
@@ -161,14 +141,13 @@ TransferState ClipboardChunk::assemble(
     return TransferState::InProgress;
   } else if (mark == ChunkType::DataEnd) {
     if (!state.active) {
-      LOG_ERR("clipboard transmission failed: end chunk received before start");
+      LOG_ERR("clipboard end chunk before start");
       reset();
       return Error;
     }
 
     state.active = false;
 
-    // validate
     if (state.expectedSize != dataCached.size()) {
       LOG_ERR("corrupted clipboard data, expected size=%zu actual size=%zu", state.expectedSize, dataCached.size());
       reset();
@@ -177,7 +156,7 @@ TransferState ClipboardChunk::assemble(
     return Finished;
   }
 
-  LOG_ERR("clipboard transmission failed: unknown error");
+  LOG_ERR("unknown clipboard chunk mark");
   reset();
   return Error;
 }

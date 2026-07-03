@@ -45,12 +45,4 @@ public:
   {
     return state.expectedSize;
   }
-
-  static size_t getExpectedSize()
-  {
-    return s_expectedSize;
-  }
-
-private:
-  static size_t s_expectedSize;
 };
