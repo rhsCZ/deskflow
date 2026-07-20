@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Chris Rizzitello <sithlord48@gmail.com>
+# SPDX-FileCopyrightText: (C) 2024 - 2026 Chris Rizzitello <sithlord48@gmail.com>
 # SPDX-License-Identifier: MIT
 
 name: "Install dependencies for deskflow"
@@ -76,7 +76,7 @@ runs:
       id: vcpkg
       uses: johnwason/vcpkg-action@v8
       with:
-        pkgs: gtest openssl
+        pkgs: openssl
         extra-args: --classic --host-triplet=${{inputs.vcpkg-triplet}}
         triplet: ${{inputs.vcpkg-triplet}}
         token: ${{ github.token }}
