@@ -1,7 +1,7 @@
 /*
  * Deskflow -- mouse and keyboard sharing utility
- * SPDX-FileCopyrightText: (C) 2024 Synergy App Ltd
- * SPDX-FileCopyrightText: (C) 2022 Red Hat, Inc.
+ * SPDX-FileCopyrightText: (C) 2024, 2026 Synergy App Ltd
+ * SPDX-FileCopyrightText: (C) 2022, 2026 Red Hat, Inc.
  * SPDX-License-Identifier: GPL-2.0-only WITH LicenseRef-OpenSSL-Exception
  */
 
@@ -11,6 +11,7 @@
 #include "deskflow/PlatformScreen.h"
 #include "platform/XDGPowerManager.h"
 
+#include <climits>
 #include <libei.h>
 #include <map>
 #include <mutex>
@@ -21,12 +22,14 @@ struct ei_event;
 struct ei_seat;
 struct ei_device;
 
+class EventQueueTimer;
+
 namespace deskflow {
 
-class WlClipboardCollection;
 class EiKeyState;
 class PortalRemoteDesktop;
 class PortalInputCapture;
+class EiClipboard;
 
 using ClipboardInfo = IScreen::ClipboardInfo;
 
@@ -78,6 +81,21 @@ public:
   void setSequenceNumber(std::uint32_t) override;
   bool isPrimary() const override;
 
+  // Send clipboard event (needed by PortalInputCapture)
+  void sendClipboardEvent(EventTypes type, ClipboardID id) const;
+
+  // Local clipboard cache (used by PortalRemoteDesktop to land selection reads)
+  EiClipboard *getClipboardCache() const
+  {
+    return m_clipboard;
+  }
+
+  // Maximum clipboard size in KB, configured by the server
+  size_t maximumClipboardSize() const
+  {
+    return m_maximumClipboardSize;
+  }
+
 protected:
   // IPlatformScreen overrides
   void handleSystemEvent(const Event &event) override;
@@ -93,7 +111,6 @@ private:
   void initEi();
   void cleanupEi();
   void sendEvent(EventTypes type, void *data);
-  void sendClipboardEvent(EventTypes type, ClipboardID id) const;
   ButtonID mapButtonFromEvdev(ei_event *event) const;
   void onKeyEvent(ei_event *event);
   void onButtonEvent(ei_event *event);
@@ -107,6 +124,9 @@ private:
 
   void handleConnectedToEisEvent(const Event &event);
   void handlePortalSessionClosed();
+  void ensureEmulating() const;
+  void stopEmulating() const;
+  void cancelIdleEmulationTimer() const;
 
   static void handleEiLogEvent(ei *ei, const ei_log_priority priority, const char *message, ei_log_context *)
   {
@@ -125,7 +145,8 @@ private:
   KeyID m_lastPressed = kKeyNone;
 
   // clipboard stuff
-  WlClipboardCollection *m_clipboard = nullptr;
+  EiClipboard *m_clipboard = nullptr;
+  size_t m_maximumClipboardSize = INT_MAX;
 
   std::vector<ei_device *> m_eiDevices;
 
@@ -135,13 +156,22 @@ private:
   ei_device *m_eiKeyboard = nullptr;
   ei_device *m_eiAbs = nullptr;
 
-  std::uint32_t m_sequenceNumber = 0;
+  mutable std::uint32_t m_sequenceNumber = 0;
+
+  // Lazily-started EIS emulation: only grab while relayed input is actually
+  // flowing, and release after a short idle so the compositor can DPMS-sleep
+  // this screen even while the deskflow cursor logically sits on it.
+  mutable bool m_isEmulating = false;
+  mutable EventQueueTimer *m_idleEmulationTimer = nullptr;
+  // Chosen empirically on one machine in 2026-06; not derived from any protocol constant.
+  static constexpr double s_idleEmulationTimeout = 4.0;
 
   std::uint32_t m_activeSides = 0;
   std::uint32_t m_x = 0;
   std::uint32_t m_y = 0;
   std::uint32_t m_w = 0;
   std::uint32_t m_h = 0;
+  bool m_isShapeInitialized = false;
 
   // true if mouse has entered the screen
   bool m_isOnScreen;

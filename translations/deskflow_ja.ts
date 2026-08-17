@@ -166,28 +166,12 @@ p, li { white-space: pre-wrap; }
         <translation>倍率</translation>
     </message>
     <message>
-        <source>Close and save changes</source>
-        <translation>変更を保存して閉じる</translation>
-    </message>
-    <message>
-        <source>Close and forget changes</source>
-        <translation>変更を破棄して閉じる</translation>
-    </message>
-    <message>
-        <source>Reset to stored values</source>
-        <translation>変更前の値にリセットする</translation>
-    </message>
-    <message>
-        <source>Reset to default values</source>
-        <translation>デフォルト値にリセットする</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allow the client to slow the rate it attempts to reconnect to the server when connections attempts are failing. The delay between connection attempts will  start at 1 second intervals and can be a maxium of 5 minutes between connection attempts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;接続試行が失敗している場合、クライアントがサーバーへの再接続を試みる頻度を徐々に落とせるようにします。接続試行の間隔は当初1秒から開始され、最大で5分まで延長されます。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;接続試行が失敗し続けている場合に、クライアントがサーバーへ再接続を試みる頻度を徐々に下げます。接続試行の間隔は当初1秒から開始され、最大で5分まで延長されます。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Use dynamic reconnection time based on connection attempts</source>
-        <translation type="unfinished">接続試行回数に基づき、再接続時間を動的に調整する</translation>
+        <translation>接続試行回数に基づき、再接続時間を動的に調整する</translation>
     </message>
 </context>
 <context>
@@ -271,6 +255,17 @@ Do you want to connect to the server?
     </message>
 </context>
 <context>
+    <name>HelpDialog</name>
+    <message>
+        <source>%1 Help</source>
+        <translation type="unfinished">%1 ヘルプ</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">近い</translation>
+    </message>
+</context>
+<context>
     <name>HotkeyDialog</name>
     <message>
         <source>Hotkey</source>
@@ -304,27 +299,27 @@ Do you want to connect to the server?
     <name>LogLevel</name>
     <message>
         <source>Fatal</source>
-        <translation type="unfinished">重大</translation>
+        <translation>重大</translation>
     </message>
     <message>
         <source>Error</source>
-        <translation type="unfinished">エラー</translation>
+        <translation>エラー</translation>
     </message>
     <message>
         <source>Warning</source>
-        <translation type="unfinished">警告</translation>
+        <translation>警告</translation>
     </message>
     <message>
         <source>Info</source>
-        <translation type="unfinished">情報</translation>
+        <translation>情報</translation>
     </message>
     <message>
         <source>Debug</source>
-        <translation type="unfinished">デバッグ</translation>
+        <translation>デバッグ</translation>
     </message>
     <message>
         <source>Verbose</source>
-        <translation type="unfinished">冗長</translation>
+        <translation>冗長</translation>
     </message>
 </context>
 <context>
@@ -422,6 +417,10 @@ Do you want to connect to the server?
         <translation>&lt;p&gt;サーバー &apos;%1&apos; への接続に失敗しました。&lt;/p&gt;&lt;p&gt;同じ名前のクライアントがサーバーに接続済です。&lt;/p&gt;&lt;p&gt;名前の重複がないことと、クライアントプロセスが多重起動していない事を確認してください。&lt;/p&gt;</translation>
     </message>
     <message>
+        <source>View &amp;Help</source>
+        <translation type="unfinished">ヘルプを表示 (&amp;H)</translation>
+    </message>
+    <message>
         <source>No IP Detected</source>
         <translation>IPアドレスが見つかりません</translation>
     </message>
@@ -466,14 +465,6 @@ A bound IP is now invalid, you may need to restart the server.</source>
     <message>
         <source>&amp;Help</source>
         <translation>ヘルプ(&amp;H)</translation>
-    </message>
-    <message>
-        <source>Clear settings</source>
-        <translation>設定を消去</translation>
-    </message>
-    <message>
-        <source>Report a Bug</source>
-        <translation>バグレポート</translation>
     </message>
     <message>
         <source>&amp;Minimize to tray</source>
@@ -564,35 +555,35 @@ Valid names:
     </message>
     <message>
         <source>read</source>
-        <translation type="unfinished">読み取り</translation>
+        <translation>読み取り</translation>
     </message>
     <message>
         <source>read and write</source>
-        <translation type="unfinished">読み書き</translation>
+        <translation>書き込み</translation>
     </message>
     <message>
         <source>The Core executable could not be started.
 Please check if you have sufficient permissions to run %1.</source>
-        <translation type="unfinished">Coreの実行ファイルを起動できませんでした。
+        <translation>Coreの実行ファイルを起動できませんでした。
 %1を実行するための十分な権限があるか確認してください。</translation>
     </message>
     <message>
         <source>
 Additionally, check you are able to %1 the server config file: %2</source>
-        <translation type="unfinished">
-また、サーバー設定ファイルを%1できることを確認してください: %2</translation>
+        <translation>
+また、サーバー設定ファイルへの%1権限があることを確認してください: %2</translation>
     </message>
     <message>
         <source>Don&apos;t show this again</source>
-        <translation type="unfinished"></translation>
+        <translation>再表示しない</translation>
     </message>
     <message>
         <source>Missing Keyboard Layouts</source>
-        <translation type="unfinished"></translation>
+        <translation>キーボードレイアウトの不足</translation>
     </message>
     <message>
         <source>&lt;p&gt;Keyboard layout support requires matching layouts on all computers. The following layouts from the other computer are not installed on this computer:&lt;/p&gt;&lt;p&gt;&lt;b&gt;%1&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Please install them to enable support for these layouts.&lt;/p&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;p&gt;キーボードレイアウトのサポートには対応するレイアウトが全てのコンピューターに必要です。別のコンピューターで使用されている以下のレイアウトがこのコンピューターにインストールされていません:&lt;/p&gt;&lt;p&gt;&lt;b&gt;%1&lt;/b&gt;&lt;/p&gt;&lt;p&gt;サポートを有効にするには、これらのレイアウトをインストールしてください。&lt;/p&gt;</translation>
     </message>
 </context>
 <context>
@@ -694,22 +685,6 @@ Additionally, check you are able to %1 the server config file: %2</source>
     <message>
         <source>A new client called &apos;%1&apos; wants to connect</source>
         <translation>新しいクライアント &apos;%1&apos; が接続を求めています</translation>
-    </message>
-    <message>
-        <source>%1 Clear Settings</source>
-        <translation>%1 設定消去</translation>
-    </message>
-    <message>
-        <source>&lt;p&gt;Are you sure you want to clear all settings and restart %1?&lt;/p&gt;&lt;p&gt;This action cannot be undone.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;全ての設定を消去して %1 を再起動しますか？&lt;/p&gt;&lt;p&gt;この操作は取り消せません。&lt;/p&gt;</translation>
-    </message>
-    <message>
-        <source>%1 Read-only settings</source>
-        <translation>%1 読み取り専用設定</translation>
-    </message>
-    <message>
-        <source>&lt;p&gt;Settings are read-only because you only have read access to the file:&lt;/p&gt;&lt;p&gt;%1&lt;/p&gt;</source>
-        <translation>&lt;p&gt;以下のファイルへの書き込み権限がないため、設定は読み取り専用です:&lt;/p&gt;&lt;p&gt;%1&lt;/p&gt;</translation>
     </message>
     <message>
         <source>No thanks</source>
@@ -899,11 +874,11 @@ Additionally, check you are able to %1 the server config file: %2</source>
     </message>
     <message>
         <source>Alt Gr</source>
-        <translation type="unfinished"></translation>
+        <translation>Alt Gr</translation>
     </message>
     <message>
         <source>Alt &amp;Gr</source>
-        <translation type="unfinished"></translation>
+        <translation>Alt &amp;Gr</translation>
     </message>
 </context>
 <context>
@@ -995,34 +970,6 @@ Additionally, check you are able to %1 the server config file: %2</source>
         <translation>詳細設定</translation>
     </message>
     <message>
-        <source>&amp;Dead corners (for this computer)</source>
-        <translation>無効領域(&amp;D) (このコンピューター)</translation>
-    </message>
-    <message>
-        <source>&amp;Bottom-left</source>
-        <translation>左下(&amp;B)</translation>
-    </message>
-    <message>
-        <source>To&amp;p-left</source>
-        <translation>左上(&amp;P)</translation>
-    </message>
-    <message>
-        <source>Bottom-ri&amp;ght</source>
-        <translation>右下(&amp;G)</translation>
-    </message>
-    <message>
-        <source>Top-rig&amp;ht</source>
-        <translation>右上(&amp;H)</translation>
-    </message>
-    <message>
-        <source>Cor&amp;ner size</source>
-        <translation>大きさ(&amp;N)</translation>
-    </message>
-    <message>
-        <source>px</source>
-        <translation>ピクセル</translation>
-    </message>
-    <message>
         <source>&amp;Misc</source>
         <translation>その他(&amp;M)</translation>
     </message>
@@ -1085,14 +1032,6 @@ Additionally, check you are able to %1 the server config file: %2</source>
     <message>
         <source>Switch on double &amp;tap within</source>
         <translation>指定時間内に画面端ダブルタップで移動(&amp;T)</translation>
-    </message>
-    <message>
-        <source>Config file</source>
-        <translation>設定ファイル</translation>
-    </message>
-    <message>
-        <source>Core server config file</source>
-        <translation>Coreサーバー設定ファイル</translation>
     </message>
     <message>
         <source>Use a server config file to create complex computer layouts that are not possible with the simple grid-based computer layout editor.
@@ -1223,6 +1162,14 @@ Enabling this setting will disable the server config GUI.</source>
         <translation>ログをファイルに保存…</translation>
     </message>
     <message>
+        <source>%1 Clear Settings</source>
+        <translation type="unfinished">%1 設定消去</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Are you sure you want to clear all settings and restart %1?&lt;/p&gt; &lt;p&gt;This action cannot be undone.&lt;/p&gt;</source>
+        <translation type="unfinished">&lt;p&gt;すべての設定を消去して %1 を再起動してもよろしいですか？&lt;/p&gt; &lt;p&gt;この操作は元に戻せません。&lt;/p&gt;</translation>
+    </message>
+    <message>
         <source>Required messages</source>
         <translation>必須のメッセージ</translation>
     </message>
@@ -1245,30 +1192,6 @@ Enabling this setting will disable the server config GUI.</source>
     <message>
         <source>Verbose debug output</source>
         <translation>詳細なデバッグ出力</translation>
-    </message>
-    <message>
-        <source>Close and save changes</source>
-        <translation>変更を保存して閉じる</translation>
-    </message>
-    <message>
-        <source>Close and forget changes</source>
-        <translation>変更を破棄して閉じる</translation>
-    </message>
-    <message>
-        <source>Reset to stored values</source>
-        <translation>変更前の値にリセットする</translation>
-    </message>
-    <message>
-        <source>Reset to default values</source>
-        <translation>デフォルト値にリセットする</translation>
-    </message>
-    <message>
-        <source>Enable wl-clipboard support</source>
-        <translation>wl-clipboard によるクリップボード対応を有効にする</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Requires the wl-clipboard package&lt;/p&gt;&lt;p&gt;When using wl-clipboard v2.2.1, there is a focus stealing bug that may make Deskflow harder to use. This has been fixed when using the wl-clipboard master branch, unless your Compositor lacks wlroots-data-control protocol support.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;wl-clipboard パッケージが必要です。&lt;/p&gt;&lt;p&gt;wl-clipboard v2.2.1 を使用すると、フォーカス盗用のバグにより Deskflow の使い勝手が悪くなる可能性があります。この問題は wl-clipboard のマスターブランチで修正されていますが、使用しているコンポジターが wlroots-data-control プロトコルに対応している必要があります。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Automatic</source>
@@ -1296,39 +1219,70 @@ Enabling this setting will disable the server config GUI.</source>
     </message>
     <message>
         <source>&amp;Window</source>
-        <translation type="unfinished">ウィンドウ(&amp;W)</translation>
+        <translation>ウィンドウ(&amp;W)</translation>
     </message>
     <message>
         <source>When the main window is closed</source>
-        <translation type="unfinished">メインウィンドウが閉じられているとき</translation>
+        <translation>メインウィンドウを閉じたとき</translation>
     </message>
     <message>
         <source>Exit</source>
-        <translation type="unfinished">終了</translation>
+        <translation>アプリケーションを終了する</translation>
     </message>
     <message>
         <source>Send to background</source>
-        <translation type="unfinished">バックグラウンドに送信</translation>
+        <translation>バックグラウンドで実行する</translation>
     </message>
     <message>
         <source>When the application starts</source>
-        <translation type="unfinished">アプリケーションが起動すると</translation>
+        <translation>アプリケーション起動時</translation>
     </message>
     <message>
         <source>Show the main window</source>
-        <translation type="unfinished">メインウィンドウを表示する</translation>
+        <translation>メインウィンドウを表示する</translation>
     </message>
     <message>
         <source>Run command on enter</source>
-        <translation type="unfinished">Enterキーでコマンドを実行</translation>
+        <translation>画面に入る時にコマンドを実行</translation>
     </message>
     <message>
         <source>Run command on exit</source>
-        <translation type="unfinished">終了時にコマンドを実行</translation>
+        <translation>画面から出る時にコマンドを実行</translation>
     </message>
     <message>
         <source>Using a log level higher than Info may affect performance.</source>
-        <translation type="unfinished">Infoよりも高いログレベルを使用すると、パフォーマンスに影響を及ぼす可能性があります。</translation>
+        <translation>Infoよりも高いログレベルを使用すると、パフォーマンスに影響を及ぼす可能性があります。</translation>
+    </message>
+    <message>
+        <source>Remove all settings</source>
+        <translation type="unfinished">すべての設定を削除する</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsDialogButtonBox</name>
+    <message>
+        <source>Settings are read only</source>
+        <translation type="unfinished">設定は読み取り専用です</translation>
+    </message>
+    <message>
+        <source>%1 is not writable</source>
+        <translation type="unfinished">%1 は書き込み可能ではありません</translation>
+    </message>
+    <message>
+        <source>Close and save changes</source>
+        <translation type="unfinished">変更を保存して閉じる</translation>
+    </message>
+    <message>
+        <source>Close and forget changes</source>
+        <translation type="unfinished">変更を破棄して閉じる</translation>
+    </message>
+    <message>
+        <source>Reset to stored values</source>
+        <translation type="unfinished">変更前の値にリセットする</translation>
+    </message>
+    <message>
+        <source>Reset to default values</source>
+        <translation type="unfinished">デフォルト値にリセットする</translation>
     </message>
 </context>
 <context>
@@ -1392,7 +1346,7 @@ Enabling this setting will disable the server config GUI.</source>
     </message>
     <message>
         <source>%1 is waiting %2 seconds before the next retry</source>
-        <translation type="unfinished">%1 は次の再試行まで %2 秒待機しています</translation>
+        <translation>%1 は次の再試行まであと %2 秒待機します</translation>
     </message>
     <message>
         <source>%1 Encryption Enabled</source>

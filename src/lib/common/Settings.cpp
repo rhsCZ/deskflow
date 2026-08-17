@@ -12,6 +12,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QFileSystemWatcher>
 #include <QRect>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -32,7 +33,9 @@ void Settings::setSettingsFile(const QString &settingsFile)
   if (instance()->m_settings)
     instance()->m_settings->deleteLater();
 
+  instance()->m_settingsWatcher->removePath(instance()->m_settings->fileName());
   instance()->m_settings = new QSettings(settingsFile, QSettings::IniFormat, instance());
+  instance()->m_settingsWatcher->addPath(settingsFile);
   instance()->m_settingsProxy->load(settingsFile);
   qInfo().noquote() << "settings file changed:" << instance()->m_settings->fileName();
 
@@ -40,6 +43,7 @@ void Settings::setSettingsFile(const QString &settingsFile)
   instance()->cleanSettings();
   instance()->cleanStateSettings();
   instance()->setupComputerName();
+  instance()->checkIfSettingsWritableChange();
 }
 
 void Settings::setStateFile(const QString &stateFile)
@@ -56,7 +60,7 @@ void Settings::setStateFile(const QString &stateFile)
   qInfo().noquote() << "state file changed:" << instance()->m_stateSettings->fileName();
 }
 
-Settings::Settings(QObject *parent) : QObject(parent)
+Settings::Settings(QObject *parent) : QObject(parent), m_settingsWatcher{new QFileSystemWatcher(this)}
 {
   QString fileToLoad;
 #ifdef Q_OS_WIN
@@ -76,6 +80,9 @@ Settings::Settings(QObject *parent) : QObject(parent)
     fileToLoad = UserSettingFile;
 
   m_settings = new QSettings(fileToLoad, QSettings::IniFormat, this);
+  m_settingsWritable = m_settings->isWritable();
+  m_settingsWatcher->addPath(m_settings->fileName());
+  connect(m_settingsWatcher, &QFileSystemWatcher::fileChanged, this, &Settings::checkIfSettingsWritableChange);
   m_settingsProxy = std::make_shared<QSettingsProxy>();
   m_settingsProxy->load(fileToLoad);
   qInfo().noquote() << "initial settings file:" << m_settings->fileName();
@@ -96,12 +103,18 @@ Settings::Settings(QObject *parent) : QObject(parent)
 
 void Settings::upgradeSettings()
 {
-  const auto logValue = m_settings->value(Settings::Log::Level).toString();
-  if (!LogLevel::logLevelOptions().contains(logValue, Qt::CaseInsensitive))
+  if (const auto logValue = m_settings->value(Settings::Log::Level).toString();
+      !LogLevel::logLevelOptions().contains(logValue, Qt::CaseInsensitive))
     m_settings->setValue(Settings::Log::Level, defaultValue(Settings::Log::Level));
 
   for (const auto [oldKey, newKey] : m_upgradedMap.asKeyValueRange()) {
-    if (m_settings->contains(oldKey) && !m_settings->contains(newKey)) {
+    if (m_settings->contains(newKey) || !m_settings->contains(oldKey))
+      continue;
+    if (oldKey == InternalConfig::Protocol) {
+      m_settings->setValue(newKey, networkProtocolToOption(NetworkProtocol(m_settings->value(oldKey).toInt())));
+    } else if (oldKey == InternalConfig::ClipboardSharingSize) {
+      m_settings->setValue(newKey, m_settings->value(oldKey).toUInt() / 1024);
+    } else {
       m_settings->setValue(newKey, m_settings->value(oldKey));
     }
   }
@@ -115,9 +128,9 @@ void Settings::cleanSettings()
       m_settings->remove(key);
     if (key.startsWith(QStringLiteral("internalConfig")))
       continue;
-    if (!m_validKeys.contains(key))
+    if (const auto group = key.mid(0, key.indexOf('/')); !m_validKeys.contains(key) && m_validGroup.contains(group))
       m_settings->remove(key);
-    if (m_settings->value(key).toString().isEmpty())
+    if (!m_settings->value(key).canConvert<QStringList>() && m_settings->value(key).toString().isEmpty())
       m_settings->remove(key);
   }
 }
@@ -159,6 +172,19 @@ QString Settings::cleanComputerName(const QString &name)
     cleanName = cleanComputerName(cleanName);
   }
   return cleanName;
+}
+
+void Settings::checkIfSettingsWritableChange()
+{
+  if (!instance()->m_settingsWatcher->files().contains(Settings::settingsFile()))
+    m_settingsWatcher->addPath(Settings::settingsFile());
+
+  bool writable = Settings::isWritable();
+  if (writable == m_settingsWritable)
+    return;
+  qDebug() << QString("Setting are now %1").arg(writable ? "writable" : "readonly");
+  instance()->m_settingsWritable = writable;
+  Q_EMIT instance()->settingsWritableChanged(writable);
 }
 
 QVariant Settings::defaultValue(const QString &key)
@@ -216,6 +242,15 @@ QVariant Settings::defaultValue(const QString &key)
   if (key == Server::GridHeight)
     return kServerGridHeight;
 
+  if (key == Server::Heartbeat)
+    return 5000;
+
+  if (key == Server::SwitchDelay || key == Server::SwitchDoubleTap)
+    return 250;
+
+  if (key == Server::ClipboardSize)
+    return 3; // 3 MiB
+
   return QVariant();
 }
 
@@ -231,6 +266,8 @@ NetworkProtocol Settings::networkProtocol()
 
 void Settings::save(bool emitSaving)
 {
+  if (!Settings::isWritable())
+    qWarning().noquote() << "settings not saved, file is read-only:" << Settings::settingsFile();
   if (emitSaving)
     Q_EMIT instance()->serverSettingsChanged();
   instance()->m_settings->sync();
@@ -340,4 +377,14 @@ QString Settings::portableSettingsFile()
   static const auto filename =
       QStringLiteral("%1/settings/%2.conf").arg(QCoreApplication::applicationDirPath(), kAppName);
   return QFileInfo(filename).absoluteFilePath();
+}
+
+void Settings::removeUnknownScreens(const QStringList &knownScreens)
+{
+  const QStringList knownGroups = instance()->m_settings->childGroups();
+  for (const auto &group : knownGroups) {
+    if (m_validGroup.contains(group) || knownScreens.contains(group))
+      continue;
+    instance()->m_settings->remove(group);
+  }
 }

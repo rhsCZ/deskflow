@@ -166,22 +166,6 @@ p, li { white-space: pre-wrap; }
         <translation type="unfinished">Scala</translation>
     </message>
     <message>
-        <source>Close and save changes</source>
-        <translation type="unfinished">Chiudi e salva le modifiche</translation>
-    </message>
-    <message>
-        <source>Close and forget changes</source>
-        <translation type="unfinished">Chiudi e dimentica le modifiche</translation>
-    </message>
-    <message>
-        <source>Reset to stored values</source>
-        <translation type="unfinished">Ripristina i valori memorizzati</translation>
-    </message>
-    <message>
-        <source>Reset to default values</source>
-        <translation type="unfinished">Ripristina i valori predefiniti</translation>
-    </message>
-    <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Allow the client to slow the rate it attempts to reconnect to the server when connections attempts are failing. The delay between connection attempts will  start at 1 second intervals and can be a maxium of 5 minutes between connection attempts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation type="unfinished">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Consente al client di rallentare la frequenza dei tentativi di riconnessione al server quando i tentativi di connessione falliscono. Il ritardo tra i tentativi di connessione inizierà a intervalli di 1 secondo, fino a raggiungere un massimo di 5 minuti tra un tentativo e l&apos;altro.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
@@ -268,6 +252,17 @@ Vuoi connetterti al server?
     <message>
         <source>Invalid hash format</source>
         <translation>Formato hash non valido</translation>
+    </message>
+</context>
+<context>
+    <name>HelpDialog</name>
+    <message>
+        <source>%1 Help</source>
+        <translation type="unfinished">%1 Aiuto</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">Vicino</translation>
     </message>
 </context>
 <context>
@@ -358,14 +353,6 @@ Vuoi connetterti al server?
         <translation>Riavvia</translation>
     </message>
     <message>
-        <source>Clear settings</source>
-        <translation>Cancella impostazioni</translation>
-    </message>
-    <message>
-        <source>Report a Bug</source>
-        <translation>Segnala un Bug</translation>
-    </message>
-    <message>
         <source>&amp;Minimize to tray</source>
         <translation>&amp;Minimizza a icona</translation>
     </message>
@@ -394,6 +381,10 @@ Vuoi connetterti al server?
         <source>About %1...</source>
         <extracomment>%1 will be the replaced with the appname</extracomment>
         <translation>Informazioni su %1...</translation>
+    </message>
+    <message>
+        <source>View &amp;Help</source>
+        <translation type="unfinished">Visualizza la &amp;guida</translation>
     </message>
     <message>
         <source>Ctrl+S</source>
@@ -694,22 +685,6 @@ Inoltre, verifica di poter %1 il file di configurazione del server: %2</translat
         <translation>Un nuovo client chiamato &quot;%1&quot; vuole connettersi</translation>
     </message>
     <message>
-        <source>%1 Clear Settings</source>
-        <translation>%1 Azzera Impostazioni</translation>
-    </message>
-    <message>
-        <source>&lt;p&gt;Are you sure you want to clear all settings and restart %1?&lt;/p&gt;&lt;p&gt;This action cannot be undone.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Sei sicuro di voler azzerare tutte le impostazioni e riavviare %1?&lt;/p&gt;&lt;p&gt;Questa azione non può essere annullata.&lt;/p&gt;</translation>
-    </message>
-    <message>
-        <source>%1 Read-only settings</source>
-        <translation>%1 Impostazioni di sola lettura</translation>
-    </message>
-    <message>
-        <source>&lt;p&gt;Settings are read-only because you only have read access to the file:&lt;/p&gt;&lt;p&gt;%1&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Le impostazioni sono di sola lettura perché hai solo accesso in lettura al file:&lt;/p&gt;&lt;p&gt;%1&lt;/p&gt;</translation>
-    </message>
-    <message>
         <source>No thanks</source>
         <translation>No, grazie</translation>
     </message>
@@ -993,34 +968,6 @@ Inoltre, verifica di poter %1 il file di configurazione del server: %2</translat
         <translation>Avanzate</translation>
     </message>
     <message>
-        <source>&amp;Dead corners (for this computer)</source>
-        <translation>&amp;Angoli morti (per questo computer)</translation>
-    </message>
-    <message>
-        <source>&amp;Bottom-left</source>
-        <translation>&amp;In basso a sinistra</translation>
-    </message>
-    <message>
-        <source>To&amp;p-left</source>
-        <translation>In a&amp;lto a sinistra</translation>
-    </message>
-    <message>
-        <source>Bottom-ri&amp;ght</source>
-        <translation>In basso a de&amp;stra</translation>
-    </message>
-    <message>
-        <source>Top-rig&amp;ht</source>
-        <translation>In alto a de&amp;stra</translation>
-    </message>
-    <message>
-        <source>Cor&amp;ner size</source>
-        <translation>Di&amp;mensioni angolo</translation>
-    </message>
-    <message>
-        <source>px</source>
-        <translation>px</translation>
-    </message>
-    <message>
         <source>&amp;Misc</source>
         <translation>&amp;Varie</translation>
     </message>
@@ -1083,14 +1030,6 @@ Inoltre, verifica di poter %1 il file di configurazione del server: %2</translat
     <message>
         <source>Switch on double &amp;tap within</source>
         <translation>Passa al doppio &amp;tap entro</translation>
-    </message>
-    <message>
-        <source>Config file</source>
-        <translation>File di configurazione</translation>
-    </message>
-    <message>
-        <source>Core server config file</source>
-        <translation>File di configurazione principale del server</translation>
     </message>
     <message>
         <source>Use a server config file</source>
@@ -1197,6 +1136,14 @@ L&apos;abilitazione di questa impostazione disabiliterà l&apos;interfaccia graf
         <translation>Esegui sempre come sistema (funziona nella schermata di accesso e UAC)</translation>
     </message>
     <message>
+        <source>%1 Clear Settings</source>
+        <translation type="unfinished">%1 Azzera Impostazioni</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Are you sure you want to clear all settings and restart %1?&lt;/p&gt; &lt;p&gt;This action cannot be undone.&lt;/p&gt;</source>
+        <translation type="unfinished">&lt;p&gt;Sei sicuro di voler cancellare tutte le impostazioni e riavviare %1?&lt;/p&gt; &lt;p&gt;Questa operazione non può essere annullata.&lt;/p&gt;</translation>
+    </message>
+    <message>
         <source>Required messages</source>
         <translation>Messaggi richiesti</translation>
     </message>
@@ -1221,22 +1168,6 @@ L&apos;abilitazione di questa impostazione disabiliterà l&apos;interfaccia graf
         <translation>Output di debug dettagliato</translation>
     </message>
     <message>
-        <source>Close and save changes</source>
-        <translation type="unfinished">Chiudi e salva le modifiche</translation>
-    </message>
-    <message>
-        <source>Close and forget changes</source>
-        <translation type="unfinished">Chiudi e dimentica le modifiche</translation>
-    </message>
-    <message>
-        <source>Reset to stored values</source>
-        <translation type="unfinished">Ripristina i valori memorizzati</translation>
-    </message>
-    <message>
-        <source>Reset to default values</source>
-        <translation type="unfinished">Ripristina i valori predefiniti</translation>
-    </message>
-    <message>
         <source>TLS Certificate Regenerated</source>
         <translation>Certificato TLS rigenerato</translation>
     </message>
@@ -1259,14 +1190,6 @@ L&apos;abilitazione di questa impostazione disabiliterà l&apos;interfaccia graf
     <message>
         <source>Enable GUI debug messages</source>
         <translation>Abilita i messaggi di debug della GUI</translation>
-    </message>
-    <message>
-        <source>Enable wl-clipboard support</source>
-        <translation>Abilita il supporto wl-clipboard</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Requires the wl-clipboard package&lt;/p&gt;&lt;p&gt;When using wl-clipboard v2.2.1, there is a focus stealing bug that may make Deskflow harder to use. This has been fixed when using the wl-clipboard master branch, unless your Compositor lacks wlroots-data-control protocol support.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Richiede il pacchetto wl-clipboard&lt;/p&gt;&lt;p&gt;Quando si utilizza wl-clipboard v2.2.1, si verifica un bug di furto del focus che potrebbe rendere Deskflow più difficile da usare. Questo problema è stato risolto quando si utilizza il ramo master di wl-clipboard, a meno che il proprio compositore non supporti il ​​protocollo wlroots-data-control.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Automatic</source>
@@ -1327,6 +1250,37 @@ L&apos;abilitazione di questa impostazione disabiliterà l&apos;interfaccia graf
     <message>
         <source>Using a log level higher than Info may affect performance.</source>
         <translation type="unfinished">L&apos;utilizzo di un livello di log superiore a Info potrebbe influire sulle prestazioni.</translation>
+    </message>
+    <message>
+        <source>Remove all settings</source>
+        <translation type="unfinished">Rimuovi tutte le impostazioni</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsDialogButtonBox</name>
+    <message>
+        <source>Settings are read only</source>
+        <translation type="unfinished">Le impostazioni sono di sola lettura</translation>
+    </message>
+    <message>
+        <source>%1 is not writable</source>
+        <translation type="unfinished">%1 non è scrivibile</translation>
+    </message>
+    <message>
+        <source>Close and save changes</source>
+        <translation type="unfinished">Chiudi e salva le modifiche</translation>
+    </message>
+    <message>
+        <source>Close and forget changes</source>
+        <translation type="unfinished">Chiudi e dimentica le modifiche</translation>
+    </message>
+    <message>
+        <source>Reset to stored values</source>
+        <translation type="unfinished">Ripristina i valori memorizzati</translation>
+    </message>
+    <message>
+        <source>Reset to default values</source>
+        <translation type="unfinished">Ripristina i valori predefiniti</translation>
     </message>
 </context>
 <context>
