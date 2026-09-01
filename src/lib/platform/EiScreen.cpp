@@ -857,7 +857,8 @@ void EiScreen::onMotionEvent(ei_event *event)
     LOG_DEBUG("event: motion on primary x=%i y=%i)", m_cursorX, m_cursorY);
     sendEvent(EventTypes::PrimaryScreenMotionOnPrimary, MotionInfo::alloc(m_cursorX, m_cursorY));
     if (m_portalInputCapture->isActive()) {
-      m_portalInputCapture->release();
+      // without a position the pointer would stay on the barrier, re-triggering capture and pinning the cursor there
+      m_portalInputCapture->release(m_cursorX, m_cursorY);
     }
   } else {
     m_bufferDX += dx;
