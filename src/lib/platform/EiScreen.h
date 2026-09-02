@@ -127,6 +127,9 @@ private:
   void ensureEmulating() const;
   void stopEmulating() const;
   void cancelIdleEmulationTimer() const;
+  void resetMotionBuffer();
+  static bool isSanePointerDelta(double value);
+  static double clampMotionBuffer(double value);
 
   static void handleEiLogEvent(ei *ei, const ei_log_priority priority, const char *message, ei_log_context *)
   {
@@ -135,6 +138,13 @@ private:
   }
 
 private:
+  // Chosen empirically on one machine in 2026-06; not derived from any protocol constant.
+  static constexpr double s_idleEmulationTimeout = 4.0;
+
+  // mutter can forward uninitialised deltas on capture activation, so anything a real
+  // pointer could not move in one frame is treated as garbage
+  static constexpr double s_maxPointerDelta = 100000;
+
   // true if screen is being used as a primary screen, false otherwise
   bool m_isPrimary = false;
   IEventQueue *m_events = nullptr;
@@ -163,8 +173,6 @@ private:
   // this screen even while the deskflow cursor logically sits on it.
   mutable bool m_isEmulating = false;
   mutable EventQueueTimer *m_idleEmulationTimer = nullptr;
-  // Chosen empirically on one machine in 2026-06; not derived from any protocol constant.
-  static constexpr double s_idleEmulationTimeout = 4.0;
 
   std::uint32_t m_activeSides = 0;
   std::uint32_t m_x = 0;
