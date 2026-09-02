@@ -25,6 +25,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <unistd.h>
 #include <vector>
 
@@ -413,9 +414,27 @@ void EiScreen::stopEmulating() const
   m_isEmulating = false;
 }
 
+bool EiScreen::isSanePointerDelta(double value)
+{
+  return std::isfinite(value) && std::abs(value) <= s_maxPointerDelta;
+}
+
+double EiScreen::clampMotionBuffer(double value)
+{
+  constexpr auto limit = static_cast<double>(std::numeric_limits<std::int32_t>::max());
+  return std::clamp(value, -limit, limit);
+}
+
+void EiScreen::resetMotionBuffer()
+{
+  m_bufferDX = 0;
+  m_bufferDY = 0;
+}
+
 void EiScreen::enter()
 {
   m_isOnScreen = true;
+  resetMotionBuffer();
   if (!m_isPrimary && m_eiAbs) {
     // Emulation is started lazily by ensureEmulating() on the first injected
     // input and released again after a short idle, so this screen can DPMS-sleep
@@ -439,6 +458,7 @@ void EiScreen::leave()
   }
 
   m_isOnScreen = false;
+  resetMotionBuffer();
 }
 
 bool EiScreen::setClipboard(ClipboardID id, const IClipboard *clipboard)
@@ -852,16 +872,20 @@ void EiScreen::onMotionEvent(ei_event *event)
 
   auto dx = ei_event_pointer_get_dx(event);
   auto dy = ei_event_pointer_get_dy(event);
+  if (!isSanePointerDelta(dx) || !isSanePointerDelta(dy)) {
+    LOG_WARN("dropping pointer motion with garbage delta: %g,%g", dx, dy);
+    return;
+  }
 
   if (m_isOnScreen) {
-    LOG_DEBUG("event: motion on primary x=%i y=%i)", m_cursorX, m_cursorY);
+    LOG_DEBUG("event: motion on primary x=%i y=%i", m_cursorX, m_cursorY);
     sendEvent(EventTypes::PrimaryScreenMotionOnPrimary, MotionInfo::alloc(m_cursorX, m_cursorY));
     if (m_portalInputCapture->isActive()) {
       m_portalInputCapture->release();
     }
   } else {
-    m_bufferDX += dx;
-    m_bufferDY += dy;
+    m_bufferDX = clampMotionBuffer(m_bufferDX + dx);
+    m_bufferDY = clampMotionBuffer(m_bufferDY + dy);
     auto pixelDx = static_cast<std::int32_t>(m_bufferDX);
     auto pixelDy = static_cast<std::int32_t>(m_bufferDY);
     if (pixelDx || pixelDy) {
