@@ -135,6 +135,9 @@ private:
   }
 
 private:
+  // Chosen empirically on one machine in 2026-06; not derived from any protocol constant.
+  static constexpr double s_idleEmulationTimeout = 4.0;
+
   // true if screen is being used as a primary screen, false otherwise
   bool m_isPrimary = false;
   IEventQueue *m_events = nullptr;
@@ -163,8 +166,6 @@ private:
   // this screen even while the deskflow cursor logically sits on it.
   mutable bool m_isEmulating = false;
   mutable EventQueueTimer *m_idleEmulationTimer = nullptr;
-  // Chosen empirically on one machine in 2026-06; not derived from any protocol constant.
-  static constexpr double s_idleEmulationTimeout = 4.0;
 
   std::uint32_t m_activeSides = 0;
   std::uint32_t m_x = 0;
