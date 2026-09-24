@@ -260,7 +260,7 @@ public:
   //! Add a screen option
   /*!
   Adds an option and its value to the named screen.  Replaces the
-  existing option's value if there is one.  Returns true iff \c name
+  existing option's value if there is one.  Returns true if \c name
   is a known screen.
   */
   bool addOption(const std::string &name, OptionID option, OptionValue value);
@@ -408,8 +408,6 @@ private:
   );
 
   void parseScreens(const ConfigReadContext &, const std::string_view &, std::set<std::string> &screens) const;
-  static const char *getOptionName(OptionID);
-  static std::string getOptionValue(OptionID, OptionValue);
 
 private:
   CellMap m_map;
