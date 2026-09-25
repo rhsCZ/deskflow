@@ -158,9 +158,9 @@ This section contains options used when in server mode it will begin with `[serv
 
  - You can use both the ''switchDelay'' and ''switchDoubleTap'' options at the same time. Deskflow will switch when either requirement is satisfied.
 
-### Screen Settings
+### Computer Settings
 
-Each screen will have a section where its configuration will be stored, if the screen was named "foo" the section will be named `[screen_foo]`
+Each computer will have a section where its configuration will be stored, if the computer was named "foo" the section will be named `[computer_foo]`
 
 |Option                  |    Valid Values   |Description|
 |:-----------------------|:-----------------:|:-----------|
