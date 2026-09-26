@@ -29,7 +29,8 @@ ServerProxy::ServerProxy(Client *client, deskflow::IStream *stream, IEventQueue 
     : m_client(client),
       m_stream(stream),
       m_events(events),
-      m_clipboardSender(events, stream)
+      // the client's GUI names the server itself
+      m_clipboardSender(events, stream, {})
 {
   assert(m_client != nullptr);
   assert(m_stream != nullptr);

@@ -1,6 +1,7 @@
 /*
  * Deskflow -- mouse and keyboard sharing utility
  * SPDX-FileCopyrightText: (C) 2025 - 2026 Deskflow Developers
+ * SPDX-FileCopyrightText: (C) 2026 Synergy App Ltd
  * SPDX-License-Identifier: GPL-2.0-only WITH LicenseRef-OpenSSL-Exception
  */
 
@@ -31,6 +32,9 @@ public:
   void setSecurityLevel(const QString &securityLevel);
   void setBtnFingerprintVisible(bool visible);
   void updateFound(const QString &version);
+  void showClipboardSending(qint64 bytes, const QString &peer);
+  void showClipboardSent(const QString &peer);
+  void showClipboardOverLimit(qint64 bytes, qint64 limit);
 
 Q_SIGNALS:
   void requestShowMyFingerprints();
@@ -42,12 +46,19 @@ protected:
 private:
   void updateText();
   void updateTimerLabel();
+  static QString clipboardPeerName(const QString &peer);
+
+  static constexpr int kClipboardSentTimeoutMs = 5000;
+  static constexpr int kClipboardNoticeTimeoutMs = 30000;
+
   QPushButton *m_btnFingerprint = nullptr;
   QLabel *m_lblSecurityIcon = nullptr;
   QLabel *m_lblStatus = nullptr;
+  QLabel *m_lblClipboard = nullptr;
   QPushButton *m_btnUpdate = nullptr;
   bool m_encrypted = false;
   QString m_securityLevel;
   int m_connectionInterval = -1;
   QTimer *m_retryTimer = nullptr;
+  QTimer *m_clipboardTimer = nullptr;
 };

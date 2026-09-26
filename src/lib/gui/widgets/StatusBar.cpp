@@ -1,6 +1,7 @@
 /*
  * Deskflow -- mouse and keyboard sharing utility
  * SPDX-FileCopyrightText: (C) 2025 - 2026 Deskflow Developers
+ * SPDX-FileCopyrightText: (C) 2026 Synergy App Ltd
  * SPDX-License-Identifier: GPL-2.0-only WITH LicenseRef-OpenSSL-Exception
  */
 
@@ -18,8 +19,10 @@ StatusBar::StatusBar(QWidget *parent)
       m_btnFingerprint{new QPushButton(this)},
       m_lblSecurityIcon{new QLabel(this)},
       m_lblStatus{new QLabel(this)},
+      m_lblClipboard{new QLabel(this)},
       m_btnUpdate{new QPushButton(this)},
-      m_retryTimer{new QTimer(this)}
+      m_retryTimer{new QTimer(this)},
+      m_clipboardTimer{new QTimer(this)}
 {
   static const auto btnHeight = height() - 2;
   static const auto btnSize = QSize(btnHeight, btnHeight);
@@ -40,13 +43,18 @@ StatusBar::StatusBar(QWidget *parent)
   m_lblStatus->setText(tr("%1 is not running").arg(kAppName));
   insertPermanentWidget(2, m_lblStatus, 1);
 
+  m_lblClipboard->setVisible(false);
+  insertPermanentWidget(3, m_lblClipboard);
+  m_clipboardTimer->setSingleShot(true);
+  connect(m_clipboardTimer, &QTimer::timeout, m_lblClipboard, &QLabel::hide);
+
   m_btnUpdate->setVisible(false);
   m_btnUpdate->setFlat(true);
   m_btnUpdate->setLayoutDirection(Qt::RightToLeft);
   m_btnUpdate->setIcon(QIcon::fromTheme(QStringLiteral("software-updates-release")));
   m_btnUpdate->setFixedHeight(btnHeight);
   m_btnUpdate->setIconSize(iconSize);
-  insertPermanentWidget(3, m_btnUpdate);
+  insertPermanentWidget(4, m_btnUpdate);
   connect(m_btnUpdate, &QPushButton::clicked, this, &StatusBar::requestUpdateVersion);
 
   m_retryTimer->setInterval(1000);
@@ -167,6 +175,36 @@ void StatusBar::updateFound(const QString &version)
 {
   m_btnUpdate->setVisible(true);
   m_btnUpdate->setToolTip(tr("A new version v%1 is available").arg(version));
+}
+
+void StatusBar::showClipboardSending(qint64 bytes, const QString &peer)
+{
+  const auto size = locale().formattedDataSize(bytes, 0, QLocale::DataSizeTraditionalFormat);
+  m_lblClipboard->setText(tr("Sending clipboard to %1 (%2)...").arg(clipboardPeerName(peer), size));
+  m_lblClipboard->setVisible(true);
+  m_clipboardTimer->start(kClipboardNoticeTimeoutMs);
+}
+
+void StatusBar::showClipboardSent(const QString &peer)
+{
+  m_lblClipboard->setText(tr("Clipboard sent to %1").arg(clipboardPeerName(peer)));
+  m_lblClipboard->setVisible(true);
+  m_clipboardTimer->start(kClipboardSentTimeoutMs);
+}
+
+void StatusBar::showClipboardOverLimit(qint64 bytes, qint64 limit)
+{
+  const auto size = locale().formattedDataSize(bytes, 0, QLocale::DataSizeTraditionalFormat);
+  const auto maximum = locale().formattedDataSize(limit, 0, QLocale::DataSizeTraditionalFormat);
+  m_lblClipboard->setText(tr("Clipboard not shared, %1 is over the %2 limit").arg(size, maximum));
+  m_lblClipboard->setVisible(true);
+  m_clipboardTimer->start(kClipboardNoticeTimeoutMs);
+}
+
+QString StatusBar::clipboardPeerName(const QString &peer)
+{
+  // an empty peer is the server, which the client's core can't name
+  return peer.isEmpty() ? Settings::value(Settings::Client::RemoteHost).toString() : peer;
 }
 
 void StatusBar::changeEvent(QEvent *e)
