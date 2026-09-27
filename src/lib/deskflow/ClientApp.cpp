@@ -37,7 +37,7 @@
 #include "platform/EiScreen.h"
 #endif
 
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS)
 #include "platform/OSXScreen.h"
 #endif
 
@@ -100,18 +100,18 @@ const char *ClientApp::daemonName() const
 
 deskflow::Screen *ClientApp::createScreen()
 {
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+  const auto languageSync = Settings::value(Settings::Client::LanguageSync).toBool();
+  LOG_INFO("keyboard language sync is %s", languageSync ? "enabled" : "disabled");
+#endif
+
 #if defined(Q_OS_WIN)
   return new deskflow::Screen(
-      new MSWindowsScreen(
-          false, Settings::value(Settings::Core::UseHooks).toBool(), getEvents(),
-          Settings::value(Settings::Client::LanguageSync).toBool()
-      ),
+      new MSWindowsScreen(false, Settings::value(Settings::Core::UseHooks).toBool(), getEvents(), languageSync),
       getEvents()
   );
-#elif defined(Q_OS_MAC)
-  return new deskflow::Screen(
-      new OSXScreen(getEvents(), false, Settings::value(Settings::Client::LanguageSync).toBool()), getEvents()
-  );
+#elif defined(Q_OS_MACOS)
+  return new deskflow::Screen(new OSXScreen(getEvents(), false, languageSync), getEvents());
 #else
   if (deskflow::platform::isWayland()) {
 #if WINAPI_LIBEI
@@ -262,10 +262,11 @@ void ClientApp::closeClient(Client *client)
     return;
   }
   using enum EventTypes;
-  getEvents()->removeHandler(ClientConnected, client);
-  getEvents()->removeHandler(ClientConnectionFailed, client);
-  getEvents()->removeHandler(ClientConnectionRefused, client);
-  getEvents()->removeHandler(ClientDisconnected, client);
+  auto *target = client->getEventTarget();
+  getEvents()->removeHandler(ClientConnected, target);
+  getEvents()->removeHandler(ClientConnectionFailed, target);
+  getEvents()->removeHandler(ClientConnectionRefused, target);
+  getEvents()->removeHandler(ClientDisconnected, target);
   delete client;
 }
 
@@ -322,7 +323,7 @@ int ClientApp::mainLoop()
   setSocketMultiplexer(std::make_unique<SocketMultiplexer>());
 
   // start client, etc
-  appUtil().startNode();
+  startNode();
 
   // run event loop.  if startClient() failed we're supposed to retry
   // later.  the timer installed by startClient() will take care of

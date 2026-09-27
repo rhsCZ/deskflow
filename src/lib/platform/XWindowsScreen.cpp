@@ -312,7 +312,7 @@ void XWindowsScreen::leave()
   XGetInputFocus(m_display, &m_lastFocus, &m_lastFocusRevert);
 
   // take focus
-  if (m_isPrimary || !m_preserveFocus) {
+  if (m_isPrimary || !m_weakFocus) {
     XSetInputFocus(m_display, m_window, RevertToPointerRoot, CurrentTime);
   }
 
@@ -395,18 +395,22 @@ void XWindowsScreen::screensaver(bool activate)
 void XWindowsScreen::resetOptions()
 {
   m_xtestIsXineramaUnaware = true;
-  m_preserveFocus = false;
+  m_weakFocus = false;
 }
 
 void XWindowsScreen::setOptions(const OptionsList &options)
 {
+  if (options.size() % 2 != 0) {
+    LOG_ERR("options are the incorrect size, can not process them");
+    return;
+  }
   for (uint32_t i = 0, n = options.size(); i < n; i += 2) {
     if (options[i] == kOptionXTestXineramaUnaware) {
       m_xtestIsXineramaUnaware = (options[i + 1] != 0);
       LOG_VERBOSE("library, XTest is Xinerama unaware %s", m_xtestIsXineramaUnaware ? "true" : "false");
-    } else if (options[i] == kOptionScreenPreserveFocus) {
-      m_preserveFocus = (options[i + 1] != 0);
-      LOG_VERBOSE("preserve focus: %s", m_preserveFocus ? "true" : "false");
+    } else if (options[i] == kOptionScreenX11WeakFocus) {
+      m_weakFocus = (options[i + 1] != 0);
+      LOG_VERBOSE("preserve focus: %s", m_weakFocus ? "true" : "false");
     }
   }
 }
@@ -1897,6 +1901,11 @@ void XWindowsScreen::refreshKeyboard(XEvent *event)
       // we tend to get a bunch of these in a row.
       return;
     }
+  }
+
+  // a later key up after the refresh doesn't properly release modifiers
+  if (!m_isPrimary) {
+    m_keyState->fakeAllKeysUp();
   }
 
   // keyboard mapping changed

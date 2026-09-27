@@ -205,27 +205,6 @@ public:
   */
   bool addScreen(const std::string &name);
 
-  //! Rename screen
-  /*!
-  Renames a screen.  All references to the name are updated.
-  Returns true iff successful.
-  */
-  bool renameScreen(const std::string &oldName, const std::string &newName);
-
-  //! Remove screen
-  /*!
-  Removes a screen.  This also removes aliases for the screen and
-  disconnects any connections to the screen.  \c name may be an
-  alias.
-  */
-  void removeScreen(const std::string &name);
-
-  //! Remove all screens
-  /*!
-  Removes all screens, aliases, and connections.
-  */
-  void removeAllScreens();
-
   //! Add alias
   /*!
   Adds an alias for a screen name.  An alias can be used
@@ -234,26 +213,6 @@ public:
   name is unknown, otherwise returns true.
   */
   bool addAlias(const std::string &canonical, const std::string &alias);
-
-  //! Remove alias
-  /*!
-  Removes an alias for a screen name.  It returns false if the
-  alias is unknown or a canonical name, otherwise returns true.
-  */
-  bool removeAlias(const std::string &alias);
-
-  //! Remove aliases
-  /*!
-  Removes all aliases for a canonical screen name.  It returns false
-  if the canonical name is unknown, otherwise returns true.
-  */
-  bool removeAliases(const std::string &canonical);
-
-  //! Remove all aliases
-  /*!
-  This removes all aliases but not the screens.
-  */
-  void removeAllAliases();
 
   //! Connect screens
   /*!
@@ -305,21 +264,6 @@ public:
   is a known screen.
   */
   bool addOption(const std::string &name, OptionID option, OptionValue value);
-
-  //! Remove a screen option
-  /*!
-  Removes an option and its value from the named screen.  Does
-  nothing if the option doesn't exist on the screen.  Returns true
-  iff \c name is a known screen.
-  */
-  bool removeOption(const std::string &name, OptionID option);
-
-  //! Remove a screen options
-  /*!
-  Removes all options and values from the named screen.  Returns true
-  iff \c name is a known screen.
-  */
-  bool removeOptions(const std::string &name);
 
   //! Get the hot key input filter
   /*!
@@ -464,8 +408,6 @@ private:
   );
 
   void parseScreens(const ConfigReadContext &, const std::string_view &, std::set<std::string> &screens) const;
-  static const char *getOptionName(OptionID);
-  static std::string getOptionValue(OptionID, OptionValue);
 
 private:
   CellMap m_map;
@@ -475,16 +417,6 @@ private:
   InputFilter m_inputFilter;
   bool m_hasLockToScreenAction = false;
   IEventQueue *m_events;
-  inline static const QStringList m_oldNames = {
-      QStringLiteral("protocol"),
-      QStringLiteral("heartbeat"),
-      QStringLiteral("switchDelay"),
-      QStringLiteral("switchDoubleTap"),
-      QStringLiteral("relativeMouseMoves"),
-      QStringLiteral("win32KeepForeground"),
-      QStringLiteral("disableLockToScreen"),
-      QStringLiteral("defaultLockToScreenState")
-  };
 };
 
 //! Configuration read context
@@ -504,12 +436,6 @@ public:
 
   bool operator!() const;
 
-  OptionValue parseBoolean(const std::string &) const;
-  OptionValue parseInt(const std::string &) const;
-  OptionValue parseModifierKey(const std::string &) const;
-  OptionValue parseCorner(const std::string &) const;
-  OptionValue parseCorners(const std::string &) const;
-  OptionValue parseProtocol(const std::string &) const;
   Config::Interval parseInterval(const ArgList &args) const;
   void parseNameWithArgs(
       const std::string &type, const std::string &line, const std::string &delim, std::string::size_type &index,

@@ -8,13 +8,12 @@
 
 #include "ServerConfig.h"
 
-#include "Hotkey.h"
+#include "common/Hotkey.h"
 #include "common/Settings.h"
 
 #include <QAbstractButton>
 #include <QPushButton>
 
-using enum ScreenConfig::Modifier;
 using enum ScreenConfig::SwitchCorner;
 using enum ScreenConfig::Fix;
 
@@ -52,12 +51,8 @@ bool ServerConfig::save(const QString &fileName) const
 
 bool ServerConfig::operator==(const ServerConfig &sc) const
 {
-  return m_Screens == sc.m_Screens &&                   //
-         m_SwitchCornerSize == sc.m_SwitchCornerSize && //
-         m_SwitchCorners == sc.m_SwitchCorners &&       //
-         m_Hotkeys == sc.m_Hotkeys &&                   //
-         m_ClipboardSharing == sc.m_ClipboardSharing && //
-         m_ClipboardSharingSize == sc.m_ClipboardSharingSize;
+  return m_Screens == sc.m_Screens && //
+         m_Hotkeys == sc.m_Hotkeys;   //
 }
 
 void ServerConfig::save(QFile &file) const
@@ -68,13 +63,8 @@ void ServerConfig::save(QFile &file) const
 
 void ServerConfig::setupScreens()
 {
-  switchCorners().clear();
   screens().clear();
   hotkeys().clear();
-
-  // m_NumSwitchCorners is used as a fixed size array. See Screen::init()
-  for (int i = 0; i < static_cast<int>(NumSwitchCorners); i++)
-    switchCorners() << false;
 
   // There must always be screen objects for each cell in the screens QList.
   // Unused screens are identified by having an empty name.
@@ -88,12 +78,6 @@ void ServerConfig::commit()
 
   settings().beginGroup("internalConfig");
   settings().remove("");
-
-  settings().setValue("switchCornerSize", switchCornerSize());
-  settings().setValue("clipboardSharing", clipboardSharing());
-  settings().setValue("clipboardSharingSize", QVariant::fromValue(clipboardSharingSize()));
-
-  writeSettings(settings(), switchCorners(), "switchCorner");
 
   settings().beginWriteArray("screens");
   for (int i = 0; i < screens().size(); i++) {
@@ -129,14 +113,6 @@ void ServerConfig::recall()
   // we need to know the number of columns and rows before we can set up
   // ourselves
   setupScreens();
-
-  setSwitchCornerSize(settings().value("switchCornerSize").toInt());
-  setClipboardSharingSize(
-      settings().value("clipboardSharingSize", (int)ServerConfig::defaultClipboardSharingSize()).toULongLong()
-  );
-  setClipboardSharing(settings().value("clipboardSharing", true).toBool());
-
-  readSettings(settings(), switchCorners(), "switchCorner", false, static_cast<int>(NumSwitchCorners));
 
   int numScreens = settings().beginReadArray("screens");
   Q_ASSERT(numScreens <= screens().size());
@@ -181,24 +157,6 @@ int ServerConfig::adjacentScreenIndex(int idx, int deltaColumn, int deltaRow) co
 
 QTextStream &operator<<(QTextStream &outStream, const ServerConfig &config)
 {
-  outStream << "section: screens" << Qt::endl;
-
-  for (const Screen &s : config.screens()) {
-    if (!s.isNull())
-      outStream << s.screensSection();
-  }
-
-  outStream << "end" << Qt::endl << Qt::endl;
-
-  outStream << "section: aliases" << Qt::endl;
-
-  for (const Screen &s : config.screens()) {
-    if (!s.isNull())
-      outStream << s.aliasesSection();
-  }
-
-  outStream << "end" << Qt::endl << Qt::endl;
-
   outStream << "section: links" << Qt::endl;
 
   for (int i = 0; const auto &screen : config.screens()) {
@@ -216,19 +174,6 @@ QTextStream &operator<<(QTextStream &outStream, const ServerConfig &config)
   outStream << "end" << Qt::endl << Qt::endl;
 
   outStream << "section: options" << Qt::endl;
-  outStream << "\t"
-            << "clipboardSharing = " << (config.clipboardSharing() ? "true" : "false") << Qt::endl;
-  outStream << "\t"
-            << "clipboardSharingSize = " << config.clipboardSharingSize() << Qt::endl;
-  outStream << "\t"
-            << "switchCorners = none ";
-  for (int i = 0; i < config.switchCorners().size(); i++)
-    if (config.switchCorners()[i])
-      outStream << "+" << ServerConfig::switchCornerName(i) << " ";
-  outStream << Qt::endl;
-
-  outStream << "\t"
-            << "switchCornerSize = " << config.switchCornerSize() << Qt::endl;
 
   for (const Hotkey &hotkey : config.hotkeys())
     outStream << hotkey;
@@ -351,26 +296,6 @@ bool ServerConfig::fixNoServer(const QString &name, int &index)
   }
 
   return fixed;
-}
-
-size_t ServerConfig::defaultClipboardSharingSize()
-{
-  return 3 * 1024; // 3 MiB
-}
-
-size_t ServerConfig::setClipboardSharingSize(size_t size)
-{
-  if (size) {
-    size += 512; // Round up to the nearest megabyte
-    size /= 1024;
-    size *= 1024;
-    setClipboardSharing(true);
-  } else {
-    setClipboardSharing(false);
-  }
-  using std::swap;
-  swap(size, m_ClipboardSharingSize);
-  return size;
 }
 
 QSettingsProxy &ServerConfig::settings()

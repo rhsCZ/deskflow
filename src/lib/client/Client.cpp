@@ -12,9 +12,12 @@
 #include "base/IEventQueue.h"
 #include "base/Log.h"
 #include "client/ServerProxy.h"
+#include "client/ServerProxy1_7.h"
+#include "client/ServerProxy1_8.h"
 #include "common/NetworkProtocol.h"
 #include "common/Settings.h"
 #include "deskflow/Clipboard.h"
+#include "deskflow/DeskflowException.h"
 #include "deskflow/IPlatformScreen.h"
 #include "deskflow/PacketStreamFilter.h"
 #include "deskflow/ProtocolTypes.h"
@@ -35,6 +38,19 @@
 //
 // Client
 //
+
+Client::DisconnectRequest::DisconnectRequest(Kind kind, const char *message)
+    : m_kind(kind),
+      m_message(message != nullptr ? message : "")
+{
+}
+
+Client::DisconnectRequest::DisconnectRequest(deskflow::core::ConnectionRefusal reason, const char *message)
+    : m_kind(Kind::Refuse),
+      m_refusalReason(reason),
+      m_message(message != nullptr ? message : "")
+{
+}
 
 Client::Client(
     IEventQueue *events, const std::string &name, const NetworkAddress &address, ISocketFactory *socketFactory,
@@ -175,6 +191,11 @@ NetworkAddress Client::getServerAddress() const
   return m_serverAddress;
 }
 
+size_t Client::getMaximumClipboardReceiveSizeBytes() const
+{
+  return m_maximumClipboardSize * 1024;
+}
+
 void *Client::getEventTarget() const
 {
   return m_screen->getEventTarget();
@@ -301,6 +322,11 @@ void Client::resetOptions()
 
 void Client::setOptions(const OptionsList &options)
 {
+  if (options.size() % 2 != 0) {
+    LOG_ERR("options are the incorrect size, can not process them");
+    return;
+  }
+
   for (auto index = options.begin(); index != options.end(); ++index) {
     const OptionID id = *index;
     if (id == kOptionClipboardSharing) {
@@ -368,11 +394,7 @@ void Client::sendClipboard(ClipboardID id)
     // marshall the data
     std::string data = clipboard.marshall();
     if (data.size() >= m_maximumClipboardSize * 1024) {
-      LOG(
-          (CLOG_INFO "skipping clipboard transfer because the clipboard"
-                     " contents exceeds the %i MB size limit set by the server",
-           m_maximumClipboardSize / 1024)
-      );
+      LOG_WARN("not sending clipboard data, exceeds limit: %zu KB", m_maximumClipboardSize);
       return;
     }
 
@@ -422,6 +444,9 @@ void Client::setupConnection()
 {
   assert(m_stream != nullptr);
 
+  m_events->addHandler(EventTypes::ClientDisconnectRequested, m_stream->getEventTarget(), [this](const auto &e) {
+    handleDisconnectRequested(e);
+  });
   m_events->addHandler(EventTypes::SocketDisconnected, m_stream->getEventTarget(), [this](const auto &) {
     handleDisconnected();
   });
@@ -439,18 +464,38 @@ void Client::setupConnection()
   });
 }
 
-void Client::setupScreen()
+bool Client::setupScreen(int16_t protocolMinor)
 {
   assert(m_server == nullptr);
 
   m_ready = false;
-  m_server = new ServerProxy(this, m_stream, m_events);
-  m_events->addHandler(EventTypes::ScreenShapeChanged, getEventTarget(), [this](const auto &) {
-    handleShapeChanged();
-  });
-  m_events->addHandler(EventTypes::ClipboardGrabbed, getEventTarget(), [this](const auto &e) {
-    handleClipboardGrabbed(e);
-  });
+
+  // only 1.6 and later have a proxy: the clipboard, mouse wheel and key message formats
+  // differ below that, and nothing older (synergy 1.4 and earlier) still needs supporting.
+  // a version with no case is refused by the hello handler.
+  switch (protocolMinor) {
+  case 6:
+    m_server = new ServerProxy(this, m_stream, m_events);
+    break;
+  case 7:
+    m_server = new ServerProxy1_7(this, m_stream, m_events);
+    break;
+  case 8:
+    m_server = new ServerProxy1_8(this, m_stream, m_events);
+    break;
+  default:
+    break;
+  }
+
+  if (m_server != nullptr) {
+    m_events->addHandler(EventTypes::ScreenShapeChanged, getEventTarget(), [this](const auto &) {
+      handleShapeChanged();
+    });
+    m_events->addHandler(EventTypes::ClipboardGrabbed, getEventTarget(), [this](const auto &e) {
+      handleClipboardGrabbed(e);
+    });
+  }
+  return m_server != nullptr;
 }
 
 void Client::setupTimer()
@@ -473,6 +518,7 @@ void Client::cleanupConnecting()
 {
   if (m_stream != nullptr) {
     m_events->removeHandler(EventTypes::DataSocketConnected, m_stream->getEventTarget());
+    m_events->removeHandler(EventTypes::DataSocketSecureConnected, m_stream->getEventTarget());
     m_events->removeHandler(EventTypes::DataSocketConnectionFailed, m_stream->getEventTarget());
   }
 }
@@ -486,6 +532,7 @@ void Client::cleanupConnection()
     m_events->removeHandler(StreamInputShutdown, m_stream->getEventTarget());
     m_events->removeHandler(StreamOutputShutdown, m_stream->getEventTarget());
     m_events->removeHandler(SocketDisconnected, m_stream->getEventTarget());
+    m_events->removeHandler(ClientDisconnectRequested, m_stream->getEventTarget());
     cleanupStream();
   }
 }
@@ -573,6 +620,21 @@ void Client::handleDisconnected()
   sendEvent(EventTypes::ClientDisconnected);
 }
 
+void Client::handleDisconnectRequested(const Event &event)
+{
+  const auto *request = static_cast<const DisconnectRequest *>(event.getDataObject());
+  if (request == nullptr) {
+    disconnect(nullptr);
+    return;
+  }
+
+  if (request->kind() == DisconnectRequest::Kind::Refuse) {
+    refuseConnection(request->refusalReason(), request->message());
+  } else {
+    disconnect(request->message());
+  }
+}
+
 void Client::handleShapeChanged()
 {
   LOG_DEBUG("resolution changed");
@@ -623,17 +685,42 @@ void Client::handleHello()
     return;
   }
 
-  LOG_DEBUG(
-      "saying hello back with version %s %d.%d", protocolName.c_str(), kProtocolMajorVersion, kProtocolMinorVersion
-  );
+  if (serverMajor != kProtocolMajorVersion) {
+    LOG_WARN("server protocol version not compatible: %d.%d", serverMajor, serverMinor);
+    sendConnectionFailedEvent(IncompatibleClientException(serverMajor, serverMinor).what());
+    cleanupTimer();
+    cleanupConnection();
+    return;
+  }
+
+  int16_t helloBackMinor = kProtocolMinorVersion;
+  if (serverMinor < kProtocolMinorVersion) {
+    helloBackMinor = serverMinor;
+    LOG_INFO(
+        "downgrading client protocol version from %d.%d to %d.%d", //
+        kProtocolMajorVersion, kProtocolMinorVersion, kProtocolMajorVersion, helloBackMinor
+    );
+  }
+
+  // no proxy speaks the negotiated version, so hang up as incompatible rather than
+  // talk a version the client does not implement, the same rule the server applies
+  // when it picks a client proxy
+  if (!setupScreen(helloBackMinor)) {
+    LOG_WARN("server protocol version not supported: %d.%d", serverMajor, serverMinor);
+    sendConnectionFailedEvent(IncompatibleClientException(serverMajor, serverMinor).what());
+    cleanupTimer();
+    cleanupConnection();
+    return;
+  }
+
+  LOG_DEBUG("saying hello back with version %s %d.%d", protocolName.c_str(), kProtocolMajorVersion, helloBackMinor);
 
   // dynamically build write format for hello back since `ProtocolUtil::writef`
   // doesn't support formatting fixed length strings yet.
   std::string helloBackMessage = protocolName + kMsgHelloBackArgs;
-  ProtocolUtil::writef(m_stream, helloBackMessage.c_str(), kProtocolMajorVersion, kProtocolMinorVersion, &m_name);
+  ProtocolUtil::writef(m_stream, helloBackMessage.c_str(), kProtocolMajorVersion, helloBackMinor, &m_name);
 
   // now connected but waiting to complete handshake
-  setupScreen();
   cleanupTimer();
 
   // make sure we process any remaining messages later.  we won't

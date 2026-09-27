@@ -109,7 +109,7 @@ MSWindowsScreen::MSWindowsScreen(bool isPrimary, bool useHooks, IEventQueue *eve
 
     updateScreenShape();
     m_class = createWindowClass();
-    m_window = createWindow(m_class, LPCWSTR(kAppName));
+    m_window = createWindow(m_class, kAppNameW);
     setupMouseKeys();
     LOG_DEBUG("screen shape: %d,%d %dx%d %s", m_x, m_y, m_w, m_h, m_multimon ? "(multi-monitor)" : "");
     LOG_DEBUG("window is 0x%08x", m_window);
@@ -595,7 +595,7 @@ uint32_t MSWindowsScreen::registerHotKey(KeyID key, KeyModifierMask mask)
   }
 
   if (!err) {
-    m_hotKeys.insert(std::make_pair(id, HotKeyItem(vk, modifiers)));
+    m_hotKeys.try_emplace(id, HotKeyItem(vk, modifiers));
     m_hotKeyToIDMap[HotKeyItem(vk, modifiers)] = id;
   } else {
     m_oldHotKeyIDs.push_back(id);
@@ -782,7 +782,7 @@ ATOM MSWindowsScreen::createWindowClass() const
   classInfo.hCursor = nullptr;
   classInfo.hbrBackground = nullptr;
   classInfo.lpszMenuName = nullptr;
-  classInfo.lpszClassName = LPCWSTR(kAppName);
+  classInfo.lpszClassName = kAppNameW;
   classInfo.hIconSm = nullptr;
   return RegisterClassEx(&classInfo);
 }
@@ -1087,7 +1087,9 @@ bool MSWindowsScreen::onKey(WPARAM wParam, LPARAM lParam)
   }
 
   // stop sending modifier keys over and over again
-  if (isModifierRepeat(oldState, state, wParam)) {
+  // but allow up to be sent if the previous state was down
+  // to prevent stuck modifier keys on the client
+  if (down && wasDown && isModifierRepeat(oldState, state, wParam)) {
     return true;
   }
 
@@ -1117,7 +1119,13 @@ bool MSWindowsScreen::onKey(WPARAM wParam, LPARAM lParam)
     // process key
     KeyModifierMask mask;
     KeyID key = m_keyState->mapKeyFromEvent(wParam, lParam, &mask);
-    button = static_cast<KeyButton>((lParam & 0x01ff0000u) >> 16);
+    const KeyButton mappedButton = static_cast<KeyButton>((lParam & 0x01ff0000u) >> 16);
+    if (mappedButton != 0) {
+      // Ctrl+Alt+Del emulation deliberately substitutes its button in lParam.
+      // Otherwise retain the virtual-key fallback above for malformed input
+      // that has no scan code, so its key-up matches the key-down on clients.
+      button = mappedButton;
+    }
     if (key != kKeyNone) {
       // do it
       m_keyState->sendKeyEvent(

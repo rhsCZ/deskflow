@@ -126,10 +126,19 @@ Server::Server(ServerConfig &config, PrimaryClient *primaryClient, deskflow::Scr
   // set initial configuration
   setConfig(config);
 
+  // If we are using libportal, we need to set the primary client first.
+  // This enables the rules of the primary client. The hotkeys are then enabled in EiScreen.cpp after the rules
+  // registered them.
+#if WINAPI_LIBPORTAL
   // enable primary client
+  m_inputFilter->setPrimaryClient(m_primaryClient);
+  m_primaryClient->enable();
+  // If we are on Mac, X11 or Windows, we need a key map, which is created in screen->enable().
+  // So we need to enable the screen first, then enable the primary client.
+#else
   m_primaryClient->enable();
   m_inputFilter->setPrimaryClient(m_primaryClient);
-
+#endif
   // Determine if scroll lock is already set. If so, lock the cursor to the
   // primary screen (unless the user has disabled lock to screen in config)
   if (!m_disableLockToScreen && (m_primaryClient->getToggleMask() & KeyModifierScrollLock)) {
@@ -175,12 +184,22 @@ Server::~Server()
     delete client;
   }
 
-  // remove input filter
-  m_inputFilter->setPrimaryClient(nullptr);
-
+  // See at Server::Server for why we do this in this order.
+#if WINAPI_LIBPORTAL
   // disable and disconnect primary client
   m_primaryClient->disable();
+  // remove input filter
+  m_inputFilter->setPrimaryClient(nullptr);
+#else
+  m_inputFilter->setPrimaryClient(nullptr);
+  m_primaryClient->disable();
+#endif
   removeClient(m_primaryClient);
+}
+
+size_t Server::getMaximumClipboardSizeBytes() const
+{
+  return m_maximumClipboardSize * 1024;
 }
 
 bool Server::setConfig(const ServerConfig &config)
@@ -825,7 +844,6 @@ bool Server::isSwitchOkay(
     if (i != options->end()) {
       size = i->second;
     }
-
     // see if we're in a locked corner
     if ((getCorner(m_active, xActive, yActive, size) & corners) != 0) {
       // yep, no switching
@@ -838,16 +856,6 @@ bool Server::isSwitchOkay(
   // ignore if mouse is locked to screen and don't try to switch later
   if (!preventSwitch && isLockedToScreen()) {
     LOG_VERBOSE("locked to screen");
-    preventSwitch = true;
-    stopSwitch();
-  }
-
-  // check for optional needed modifiers
-  if (KeyModifierMask mods = this->m_primaryClient->getToggleMask();
-      !preventSwitch && ((this->m_switchNeedsShift && ((mods & KeyModifierShift) != KeyModifierShift)) ||
-                         (this->m_switchNeedsControl && ((mods & KeyModifierControl) != KeyModifierControl)) ||
-                         (this->m_switchNeedsAlt && ((mods & KeyModifierAlt) != KeyModifierAlt)))) {
-    LOG_VERBOSE("need modifiers to switch");
     preventSwitch = true;
     stopSwitch();
   }
@@ -1077,10 +1085,6 @@ void Server::processOptions()
     return;
   }
 
-  m_switchNeedsShift = false;   // it seems if i don't add these
-  m_switchNeedsControl = false; // lines, the 'reload config' option
-  m_switchNeedsAlt = false;     // doesnt' work correct.
-
   bool newRelativeMoves = m_relativeMoves;
   for (auto [optionId, optionValue] : *options) {
     const OptionID id = optionId;
@@ -1097,12 +1101,6 @@ void Server::processOptions()
         m_switchTwoTapDelay = 0.0;
       }
       stopSwitchTwoTap();
-    } else if (id == kOptionScreenSwitchNeedsControl) {
-      m_switchNeedsControl = (value != 0);
-    } else if (id == kOptionScreenSwitchNeedsShift) {
-      m_switchNeedsShift = (value != 0);
-    } else if (id == kOptionScreenSwitchNeedsAlt) {
-      m_switchNeedsAlt = (value != 0);
     } else if (id == kOptionRelativeMouseMoves) {
       newRelativeMoves = (value != 0);
     } else if (id == kOptionDefaultLockToScreenState) {
@@ -1179,12 +1177,12 @@ void Server::handleClipboardGrabbed(const Event &event, BaseClientProxy *grabber
   // screen to grab.
   ClipboardInfo &clipboard = m_clipboards[info->m_id];
   if (grabber != m_primaryClient && info->m_sequenceNumber < clipboard.m_clipboardSeqNum) {
-    LOG_INFO("ignored screen \"%s\" grab of clipboard %d", getName(grabber).c_str(), info->m_id);
+    LOG_DEBUG("ignored screen \"%s\" grab of clipboard %d", getName(grabber).c_str(), info->m_id);
     return;
   }
 
   // mark screen as owning clipboard
-  LOG_INFO(
+  LOG_DEBUG(
       "screen \"%s\" grabbed clipboard %d from \"%s\"", getName(grabber).c_str(), info->m_id,
       clipboard.m_clipboardOwner.c_str()
   );
@@ -1210,10 +1208,8 @@ void Server::handleClipboardGrabbed(const Event &event, BaseClientProxy *grabber
   }
 
   if (grabber == m_primaryClient && m_active != m_primaryClient) {
-    LOG_INFO("clipboard grabbed while active screen was changed, resending clipboard data");
-    for (ClipboardID id = 0; id < kClipboardEnd; ++id) {
-      onClipboardChanged(m_primaryClient, id, m_clipboards[id].m_clipboardSeqNum);
-    }
+    LOG_DEBUG("clipboard grabbed while active screen was changed, resending clipboard data");
+    onClipboardChanged(m_primaryClient, info->m_id, clipboard.m_clipboardSeqNum);
   }
 }
 
@@ -1459,10 +1455,7 @@ void Server::onClipboardChanged(const BaseClientProxy *sender, ClipboardID id, u
 
   std::string data = clipboard.m_clipboard.marshall();
   if (data.size() > m_maximumClipboardSize * 1024) {
-    LOG_INFO(
-        "not updating clipboard because it's over the size limit (%i KB) configured by the server",
-        m_maximumClipboardSize
-    );
+    LOG_WARN("not sending clipboard data, exceeds limit: %i KB", m_maximumClipboardSize);
     return;
   }
 
@@ -1913,7 +1906,7 @@ bool Server::addClient(BaseClientProxy *client)
 
   // add to list
   m_clientSet.insert(client);
-  m_clients.insert(std::make_pair(name, client));
+  m_clients.try_emplace(name, client);
 
   // initialize client data
   int32_t x;
@@ -1976,7 +1969,7 @@ void Server::closeClient(BaseClientProxy *client, const char *msg)
   // move client to closing list
   removeClient(client);
 
-  m_oldClients.insert(std::make_pair(client, timer));
+  m_oldClients.try_emplace(client, timer);
 
   // if this client is the active screen then we have to
   // jump off of it

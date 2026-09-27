@@ -9,10 +9,10 @@
 #include "server/Config.h"
 
 #include "base/IEventQueue.h"
+#include "common/KeyboardModifier.h"
 #include "deskflow/KeyMap.h"
 #include "deskflow/KeyTypes.h"
 #include "deskflow/OptionTypes.h"
-#include "deskflow/ProtocolTypes.h"
 #include "net/SocketException.h"
 #include "server/Server.h"
 
@@ -41,88 +41,78 @@ bool Config::addScreen(const std::string &name)
   }
 
   // add cell
-  m_map.insert(std::make_pair(name, Cell()));
+  m_map.try_emplace(name, Cell());
 
   // add name
-  m_nameToCanonicalName.insert(std::make_pair(name, name));
+  m_nameToCanonicalName.try_emplace(name, name);
+
+  const auto screen = QString::fromStdString(name);
+  // add aliases
+  const auto aliases = Settings::value(Settings::Screen::Aliases.arg(screen)).toStringList();
+  for (const auto &alias : aliases)
+    m_nameToCanonicalName.try_emplace(alias.toStdString(), name);
+
+  addOption(
+      name, kOptionHalfDuplexCapsLock, Settings::value(Settings::Screen::HalfDuplexCapsLock.arg(screen)).toBool()
+  );
+  addOption(name, kOptionHalfDuplexNumLock, Settings::value(Settings::Screen::HalfDuplexNumLock.arg(screen)).toBool());
+  addOption(
+      name, kOptionHalfDuplexScrollLock, Settings::value(Settings::Screen::HalfDuplexScrollLock.arg(screen)).toBool()
+  );
+  addOption(
+      name, kOptionXTestXineramaUnaware, Settings::value(Settings::Screen::XtestIsXineramaUnaware.arg(screen)).toBool()
+  );
+  addOption(
+      name, kOptionScreenSwitchCornerSize, Settings::value(Settings::Screen::SwitchCornerSize.arg(screen)).toInt()
+  );
+  addOption(name, kOptionScreenX11WeakFocus, Settings::value(Settings::Screen::WeakX11Focus.arg(screen)).toBool());
+
+  OptionValue cornerValue = s_noCornerMask;
+  if (Settings::value(Settings::Screen::SwitchCornerTopLeft.arg(screen)).toBool()) {
+    cornerValue = cornerValue | s_topLeftCornerMask;
+  }
+  if (Settings::value(Settings::Screen::SwitchCornerTopRight.arg(screen)).toBool()) {
+    cornerValue = cornerValue | s_topRightCornerMask;
+  }
+  if (Settings::value(Settings::Screen::SwitchCornerBottomLeft.arg(screen)).toBool()) {
+    cornerValue = cornerValue | s_bottomLeftCornerMask;
+  }
+  if (Settings::value(Settings::Screen::SwitchCornerBottomRight.arg(screen)).toBool()) {
+    cornerValue = cornerValue | s_bottomRightCornerMask;
+  }
+  addOption(name, kOptionScreenSwitchCorners, cornerValue);
+
+  auto altModifier = Settings::value(Settings::Screen::ModifierAlt.arg(screen)).toString();
+  if (altModifier.isEmpty())
+    altModifier = kModifierNameAlt;
+  addOption(name, kOptionModifierMapForAlt, modifierIDValueFromString(altModifier));
+
+  auto altgrModifier = Settings::value(Settings::Screen::ModifierAltGr.arg(screen)).toString();
+  if (altgrModifier.isEmpty())
+    altgrModifier = kModifierNameAltGr;
+  addOption(name, kOptionModifierMapForAltGr, modifierIDValueFromString(altgrModifier));
+
+  auto ctrlModifier = Settings::value(Settings::Screen::ModifierCtrl.arg(screen)).toString();
+  if (ctrlModifier.isEmpty())
+    ctrlModifier = kModifierNameCtrl;
+  addOption(name, kOptionModifierMapForControl, modifierIDValueFromString(ctrlModifier));
+
+  auto metaModifier = Settings::value(Settings::Screen::ModifierMeta.arg(screen)).toString();
+  if (metaModifier.isEmpty())
+    metaModifier = kModifierNameMeta;
+  addOption(name, kOptionModifierMapForMeta, modifierIDValueFromString(metaModifier));
+
+  auto shiftModifier = Settings::value(Settings::Screen::ModifierShift.arg(screen)).toString();
+  if (shiftModifier.isEmpty())
+    shiftModifier = kModifierNameShift;
+  addOption(name, kOptionModifierMapForShift, modifierIDValueFromString(shiftModifier));
+
+  auto superModifier = Settings::value(Settings::Screen::ModifierSuper.arg(screen)).toString();
+  if (superModifier.isEmpty())
+    superModifier = kModifierNameSuper;
+  addOption(name, kOptionModifierMapForSuper, modifierIDValueFromString(superModifier));
 
   return true;
-}
-
-bool Config::renameScreen(const std::string &oldName, const std::string &newName)
-{
-  // get canonical name and find cell
-  std::string oldCanonical = getCanonicalName(oldName);
-  CellMap::iterator index = m_map.find(oldCanonical);
-  if (index == m_map.end()) {
-    return false;
-  }
-
-  // accept if names are equal but replace with new name to maintain
-  // case.  otherwise, the new name must not exist.
-  if (!CaselessCmp::equal(oldName, newName) && m_nameToCanonicalName.contains(newName)) {
-    return false;
-  }
-
-  // update cell
-  Cell tmpCell = index->second;
-  m_map.erase(index);
-  m_map.insert(std::make_pair(newName, tmpCell));
-
-  // update name
-  m_nameToCanonicalName.erase(oldCanonical);
-  m_nameToCanonicalName.insert(std::make_pair(newName, newName));
-
-  // update connections
-  Name oldNameObj(this, oldName);
-  for (index = m_map.begin(); index != m_map.end(); ++index) {
-    index->second.rename(oldNameObj, newName);
-  }
-
-  // update alias targets
-  if (CaselessCmp::equal(oldName, oldCanonical)) {
-    for (auto iter = m_nameToCanonicalName.begin(); iter != m_nameToCanonicalName.end(); ++iter) {
-      if (CaselessCmp::equal(iter->second, oldCanonical)) {
-        iter->second = newName;
-      }
-    }
-  }
-
-  return true;
-}
-
-void Config::removeScreen(const std::string &name)
-{
-  // get canonical name and find cell
-  std::string canonical = getCanonicalName(name);
-  CellMap::iterator index = m_map.find(canonical);
-  if (index == m_map.end()) {
-    return;
-  }
-
-  // remove from map
-  m_map.erase(index);
-
-  // disconnect
-  Name nameObj(this, name);
-  for (index = m_map.begin(); index != m_map.end(); ++index) {
-    index->second.remove(nameObj);
-  }
-
-  // remove aliases (and canonical name)
-  for (auto iter = m_nameToCanonicalName.begin(); iter != m_nameToCanonicalName.end();) {
-    if (iter->second == canonical) {
-      m_nameToCanonicalName.erase(iter++);
-    } else {
-      ++iter;
-    }
-  }
-}
-
-void Config::removeAllScreens()
-{
-  m_map.clear();
-  m_nameToCanonicalName.clear();
 }
 
 bool Config::addAlias(const std::string &canonical, const std::string &alias)
@@ -138,58 +128,9 @@ bool Config::addAlias(const std::string &canonical, const std::string &alias)
   }
 
   // insert alias
-  m_nameToCanonicalName.insert(std::make_pair(alias, canonical));
+  m_nameToCanonicalName.try_emplace(alias, canonical);
 
   return true;
-}
-
-bool Config::removeAlias(const std::string &alias)
-{
-  // must not be a canonical name
-  if (m_map.contains(alias)) {
-    return false;
-  }
-
-  // find alias
-  NameMap::iterator index = m_nameToCanonicalName.find(alias);
-  if (index == m_nameToCanonicalName.end()) {
-    return false;
-  }
-
-  // remove alias
-  m_nameToCanonicalName.erase(index);
-
-  return true;
-}
-
-bool Config::removeAliases(const std::string &canonical)
-{
-  // must be a canonical name
-  if (!m_map.contains(canonical)) {
-    return false;
-  }
-
-  // find and removing matching aliases
-  for (auto index = m_nameToCanonicalName.begin(); index != m_nameToCanonicalName.end();) {
-    if (index->second == canonical && index->first != canonical) {
-      m_nameToCanonicalName.erase(index++);
-    } else {
-      ++index;
-    }
-  }
-
-  return true;
-}
-
-void Config::removeAllAliases()
-{
-  // remove all names
-  m_nameToCanonicalName.clear();
-
-  // put the canonical names back in
-  for (auto index = m_map.begin(); index != m_map.end(); ++index) {
-    m_nameToCanonicalName.insert(std::make_pair(index->first, index->first));
-  }
 }
 
 bool Config::connect(
@@ -266,48 +207,6 @@ bool Config::addOption(const std::string &name, OptionID option, OptionValue val
 
   // add option
   options->insert(std::make_pair(option, value));
-  return true;
-}
-
-bool Config::removeOption(const std::string &name, OptionID option)
-{
-  // find options
-  ScreenOptions *options = nullptr;
-  if (name.empty()) {
-    options = &m_globalOptions;
-  } else {
-    CellMap::iterator index = m_map.find(name);
-    if (index != m_map.end()) {
-      options = &index->second.m_options;
-    }
-  }
-  if (options == nullptr) {
-    return false;
-  }
-
-  // remove option
-  options->erase(option);
-  return true;
-}
-
-bool Config::removeOptions(const std::string &name)
-{
-  // find options
-  ScreenOptions *options = nullptr;
-  if (name.empty()) {
-    options = &m_globalOptions;
-  } else {
-    CellMap::iterator index = m_map.find(name);
-    if (index != m_map.end()) {
-      options = &index->second.m_options;
-    }
-  }
-  if (options == nullptr) {
-    return false;
-  }
-
-  // remove options
-  options->clear();
   return true;
 }
 
@@ -540,6 +439,21 @@ bool Config::operator==(const Config &x) const
 void Config::read(ConfigReadContext &context)
 {
   Config tmp(m_events);
+  const auto screens = Settings::knownScreens();
+  for (const auto &screen : screens) {
+    if (screen.isEmpty())
+      continue;
+    const auto screenName = screen.toStdString();
+
+    if (!isValidScreenName(screenName)) {
+      throw ServerConfigReadException(context, "invalid screen name \"%{1}\"", screenName);
+    }
+
+    // add the screen to the configuration
+    if (!tmp.addScreen(screenName)) {
+      throw ServerConfigReadException(context, "duplicate screen name \"%{1}\"", screenName);
+    }
+  }
   while (context.getStream()) {
     tmp.readSection(context);
   }
@@ -603,10 +517,10 @@ void Config::readSection(ConfigReadContext &s)
     readSectionOptions(s);
   } else if (name == s_screens) {
     readSectionScreens(s);
-  } else if (name == s_links) {
-    readSectionLinks(s);
   } else if (name == s_aliases) {
     readSectionAliases(s);
+  } else if (name == s_links) {
+    readSectionLinks(s);
   } else {
     throw ServerConfigReadException(s, "unknown section name \"%{1}\"", name);
   }
@@ -614,11 +528,45 @@ void Config::readSection(ConfigReadContext &s)
 
 void Config::readSectionOptions(ConfigReadContext &s)
 {
+  if (Settings::value(Settings::Server::EnableHeartbeat).toBool()) {
+    addOption("", kOptionHeartbeat, Settings::value(Settings::Server::Heartbeat).toInt());
+  }
+
+  if (Settings::value(Settings::Server::EnableSwitchDelay).toBool()) {
+    addOption("", kOptionScreenSwitchDelay, Settings::value(Settings::Server::SwitchDelay).toInt());
+  }
+
+  if (Settings::value(Settings::Server::EnableSwitchDoubleTap).toBool()) {
+    addOption("", kOptionScreenSwitchTwoTap, Settings::value(Settings::Server::SwitchDoubleTap).toInt());
+  }
+
+  addOption(
+      "", kOptionDefaultLockToScreenState, Settings::value(Settings::Server::DefaultLockToComputerState).toBool()
+  );
+  addOption("", kOptionDisableLockToScreen, Settings::value(Settings::Server::DisableLockToComputer).toBool());
+  addOption("", kOptionRelativeMouseMoves, Settings::value(Settings::Server::RelativeMouseMoves).toBool());
+  addOption("", kOptionWin32KeepForeground, Settings::value(Settings::Server::Win32KeepForeground).toBool());
+  addOption("", kOptionClipboardSharing, Settings::value(Settings::Server::EnableClipboard).toBool());
+  addOption("", kOptionClipboardSharingSize, Settings::value(Settings::Server::ClipboardSize).toUInt() * 1024);
+
+  if (const auto address = Settings::value(Settings::Core::Interface).toString(); !address.isEmpty()) {
+    m_deskflowAddress = NetworkAddress(address.toStdString(), Settings::value(Settings::Core::Port).toInt());
+  } else {
+    m_deskflowAddress = NetworkAddress(Settings::value(Settings::Core::Port).toInt());
+  }
+  try {
+    m_deskflowAddress.resolve();
+  } catch (SocketAddressException &e) {
+    throw ServerConfigReadException(s, std::string("invalid address argument ") + e.what());
+  }
+
   std::string line;
   while (s.readLine(line)) {
-    // check for end of section
     if (line == "end") {
       return;
+    } else if (const auto l = QString::fromStdString(line).simplified();
+               !l.startsWith(QStringLiteral("keystroke")) && !l.startsWith(QStringLiteral("mousepress"))) {
+      continue;
     }
 
     // parse argument:  `nameAndArgs = [values][;[values]]'
@@ -634,177 +582,56 @@ void Config::readSectionOptions(ConfigReadContext &s)
     ++i;
     s.parseNameWithArgs("value", line, ",;\n", i, value, valueArgs);
 
-    bool handled = true;
+    // make filter rule
+    InputFilter::Rule rule(parseCondition(s, name, nameArgs));
 
-    if (m_oldNames.contains(name))
-      continue;
-
-    if (name == "address") {
-      try {
-        m_deskflowAddress = NetworkAddress(value, kDefaultPort);
-        m_deskflowAddress.resolve();
-      } catch (SocketAddressException &e) {
-        throw ServerConfigReadException(s, std::string("invalid address argument ") + e.what());
-      }
-    } else if (name == "switchCorners") {
-      addOption("", kOptionScreenSwitchCorners, s.parseCorners(value));
-    } else if (name == "switchCornerSize") {
-      addOption("", kOptionScreenSwitchCornerSize, s.parseInt(value));
-    } else if (name == "switchNeedsShift") {
-      addOption("", kOptionScreenSwitchNeedsShift, s.parseBoolean(value));
-    } else if (name == "switchNeedsControl") {
-      addOption("", kOptionScreenSwitchNeedsControl, s.parseBoolean(value));
-    } else if (name == "switchNeedsAlt") {
-      addOption("", kOptionScreenSwitchNeedsAlt, s.parseBoolean(value));
-    } else if (name == "clipboardSharing") {
-      addOption("", kOptionClipboardSharing, s.parseBoolean(value));
-    } else if (name == "clipboardSharingSize") {
-      addOption("", kOptionClipboardSharingSize, s.parseInt(value));
-    } else {
-      handled = false;
+    // save first action (if any)
+    if (!value.empty() || line[i] != ';') {
+      parseAction(s, value, valueArgs, rule, true);
     }
 
-    if (handled) {
-      // make sure handled options aren't followed by more values
-      if (i < line.size() && (line[i] == ',' || line[i] == ';')) {
-        throw ServerConfigReadException(s, std::string("too many arguments for: ").append(name));
-      }
-    } else {
-      // make filter rule
-      InputFilter::Rule rule(parseCondition(s, name, nameArgs));
+    // get remaining activate actions
+    while (i < line.length() && line[i] != ';') {
+      ++i;
+      s.parseNameWithArgs("value", line, ",;\n", i, value, valueArgs);
+      parseAction(s, value, valueArgs, rule, true);
+    }
 
-      // save first action (if any)
-      if (!value.empty() || line[i] != ';') {
-        parseAction(s, value, valueArgs, rule, true);
+    // get deactivate actions
+    if (i < line.length() && line[i] == ';') {
+      // allow trailing ';'
+      i = line.find_first_not_of(" \t", i + 1);
+      if (i == std::string::npos) {
+        i = line.length();
+      } else {
+        --i;
       }
 
-      // get remaining activate actions
-      while (i < line.length() && line[i] != ';') {
+      // get actions
+      while (i < line.length()) {
         ++i;
-        s.parseNameWithArgs("value", line, ",;\n", i, value, valueArgs);
-        parseAction(s, value, valueArgs, rule, true);
+        s.parseNameWithArgs("value", line, ",\n", i, value, valueArgs);
+        parseAction(s, value, valueArgs, rule, false);
       }
-
-      // get deactivate actions
-      if (i < line.length() && line[i] == ';') {
-        // allow trailing ';'
-        i = line.find_first_not_of(" \t", i + 1);
-        if (i == std::string::npos) {
-          i = line.length();
-        } else {
-          --i;
-        }
-
-        // get actions
-        while (i < line.length()) {
-          ++i;
-          s.parseNameWithArgs("value", line, ",\n", i, value, valueArgs);
-          parseAction(s, value, valueArgs, rule, false);
-        }
-      }
-
-      // add rule
-      m_inputFilter.addFilterRule(rule);
     }
+
+    // add rule
+    m_inputFilter.addFilterRule(rule);
   }
-
-  if (Settings::value(Settings::Server::EnableHeatbeat).toBool()) {
-    addOption("", kOptionHeartbeat, Settings::value(Settings::Server::Heartbeat).toInt());
-  }
-
-  if (Settings::value(Settings::Server::EnableSwitchDelay).toBool()) {
-    addOption("", kOptionScreenSwitchDelay, Settings::value(Settings::Server::SwitchDelay).toInt());
-  }
-
-  if (Settings::value(Settings::Server::EnableSwitchDoubleTap).toBool()) {
-    addOption("", kOptionScreenSwitchTwoTap, Settings::value(Settings::Server::SwitchDoubleTap).toInt());
-  }
-
-  addOption("", kOptionDefaultLockToScreenState, Settings::value(Settings::Server::DefaultLockToComputerState).toInt());
-  addOption("", kOptionDisableLockToScreen, Settings::value(Settings::Server::DisableLockToComputer).toInt());
-  addOption("", kOptionRelativeMouseMoves, Settings::value(Settings::Server::RelativeMouseMoves).toInt());
-  addOption("", kOptionWin32KeepForeground, Settings::value(Settings::Server::Win32KeepForeground).toInt());
-
   throw ServerConfigReadException(s, "unexpected end of options section");
 }
 
 void Config::readSectionScreens(ConfigReadContext &s)
 {
+  qWarning(
+  ) << "Your server config has a screen section. Screens have moved to the general config this section will not be "
+       "parsed.";
   std::string line;
   std::string screen;
   while (s.readLine(line)) {
     // check for end of section
     if (line == "end") {
       return;
-    }
-
-    // see if it's the next screen
-    if (line[line.size() - 1] == ':') {
-      // strip :
-      screen = line.substr(0, line.size() - 1);
-
-      // verify validity of screen name
-      if (!isValidScreenName(screen)) {
-        throw ServerConfigReadException(s, "invalid screen name \"%{1}\"", screen);
-      }
-
-      // add the screen to the configuration
-      if (!addScreen(screen)) {
-        throw ServerConfigReadException(s, "duplicate screen name \"%{1}\"", screen);
-      }
-    } else if (screen.empty()) {
-      throw ServerConfigReadException(s, "argument before first screen");
-    } else {
-      // parse argument:  `<name>=<value>'
-      std::string::size_type i = line.find_first_of(" \t=");
-      if (i == 0) {
-        throw ServerConfigReadException(s, "missing argument name");
-      }
-      if (i == std::string::npos) {
-        throw ServerConfigReadException(s, "missing =");
-      }
-      std::string name = line.substr(0, i);
-      i = line.find_first_not_of(" \t", i);
-      if (i == std::string::npos || line[i] != '=') {
-        throw ServerConfigReadException(s, "missing =");
-      }
-      i = line.find_first_not_of(" \t", i + 1);
-      std::string value;
-      if (i != std::string::npos) {
-        value = line.substr(i);
-      }
-
-      // handle argument
-      if (name == "halfDuplexCapsLock") {
-        addOption(screen, kOptionHalfDuplexCapsLock, s.parseBoolean(value));
-      } else if (name == "halfDuplexNumLock") {
-        addOption(screen, kOptionHalfDuplexNumLock, s.parseBoolean(value));
-      } else if (name == "halfDuplexScrollLock") {
-        addOption(screen, kOptionHalfDuplexScrollLock, s.parseBoolean(value));
-      } else if (name == "shift") {
-        addOption(screen, kOptionModifierMapForShift, s.parseModifierKey(value));
-      } else if (name == "ctrl") {
-        addOption(screen, kOptionModifierMapForControl, s.parseModifierKey(value));
-      } else if (name == "alt") {
-        addOption(screen, kOptionModifierMapForAlt, s.parseModifierKey(value));
-      } else if (name == "altgr") {
-        addOption(screen, kOptionModifierMapForAltGr, s.parseModifierKey(value));
-      } else if (name == "meta") {
-        addOption(screen, kOptionModifierMapForMeta, s.parseModifierKey(value));
-      } else if (name == "super") {
-        addOption(screen, kOptionModifierMapForSuper, s.parseModifierKey(value));
-      } else if (name == "xtestIsXineramaUnaware") {
-        addOption(screen, kOptionXTestXineramaUnaware, s.parseBoolean(value));
-      } else if (name == "switchCorners") {
-        addOption(screen, kOptionScreenSwitchCorners, s.parseCorners(value));
-      } else if (name == "switchCornerSize") {
-        addOption(screen, kOptionScreenSwitchCornerSize, s.parseInt(value));
-      } else if (name == "preserveFocus") {
-        addOption(screen, kOptionScreenPreserveFocus, s.parseBoolean(value));
-      } else {
-        // unknown argument
-        throw ServerConfigReadException(s, "unknown argument \"%{1}\"", name);
-      }
     }
   }
   throw ServerConfigReadException(s, "unexpected end of screens section");
@@ -882,38 +709,13 @@ void Config::readSectionLinks(ConfigReadContext &s)
 
 void Config::readSectionAliases(ConfigReadContext &s)
 {
+  qWarning(
+  ) << "Your server config has an alias section. Alias have moved to the general config this section will no be "
+       "parsed.";
   std::string line;
-  std::string screen;
   while (s.readLine(line)) {
-    // check for end of section
     if (line == "end") {
       return;
-    }
-
-    // see if it's the next screen
-    if (line[line.size() - 1] == ':') {
-      // strip :
-      screen = line.substr(0, line.size() - 1);
-
-      // verify we know about the screen
-      if (!isScreen(screen)) {
-        throw ServerConfigReadException(s, "unknown screen name \"%{1}\"", screen);
-      }
-      if (!isCanonicalName(screen)) {
-        throw ServerConfigReadException(s, "cannot use screen name alias here");
-      }
-    } else if (screen.empty()) {
-      throw ServerConfigReadException(s, "argument before first screen");
-    } else {
-      // verify validity of screen name
-      if (!isValidScreenName(line)) {
-        throw ServerConfigReadException(s, "invalid screen alias \"%{1}\"", line);
-      }
-
-      // add alias
-      if (!addAlias(screen, line)) {
-        throw ServerConfigReadException(s, "alias \"%{1}\" is already used", line);
-      }
     }
   }
   throw ServerConfigReadException(s, "unexpected end of aliases section");
@@ -1185,143 +987,6 @@ void Config::parseScreens(const ConfigReadContext &c, const std::string_view &s,
   }
 }
 
-const char *Config::getOptionName(OptionID id)
-{
-  if (id == kOptionHalfDuplexCapsLock) {
-    return "halfDuplexCapsLock";
-  }
-  if (id == kOptionHalfDuplexNumLock) {
-    return "halfDuplexNumLock";
-  }
-  if (id == kOptionHalfDuplexScrollLock) {
-    return "halfDuplexScrollLock";
-  }
-  if (id == kOptionModifierMapForShift) {
-    return "shift";
-  }
-  if (id == kOptionModifierMapForControl) {
-    return "ctrl";
-  }
-  if (id == kOptionModifierMapForAlt) {
-    return "alt";
-  }
-  if (id == kOptionModifierMapForAltGr) {
-    return "altgr";
-  }
-  if (id == kOptionModifierMapForMeta) {
-    return "meta";
-  }
-  if (id == kOptionModifierMapForSuper) {
-    return "super";
-  }
-  if (id == kOptionHeartbeat) {
-    return "heartbeat";
-  }
-  if (id == kOptionScreenSwitchCorners) {
-    return "switchCorners";
-  }
-  if (id == kOptionScreenSwitchCornerSize) {
-    return "switchCornerSize";
-  }
-  if (id == kOptionScreenSwitchDelay) {
-    return "switchDelay";
-  }
-  if (id == kOptionScreenSwitchTwoTap) {
-    return "switchDoubleTap";
-  }
-  if (id == kOptionScreenSwitchNeedsShift) {
-    return "switchNeedsShift";
-  }
-  if (id == kOptionScreenSwitchNeedsControl) {
-    return "switchNeedsControl";
-  }
-  if (id == kOptionScreenSwitchNeedsAlt) {
-    return "switchNeedsAlt";
-  }
-  if (id == kOptionXTestXineramaUnaware) {
-    return "xtestIsXineramaUnaware";
-  }
-  if (id == kOptionRelativeMouseMoves) {
-    return "relativeMouseMoves";
-  }
-  if (id == kOptionWin32KeepForeground) {
-    return "win32KeepForeground";
-  }
-  if (id == kOptionScreenPreserveFocus) {
-    return "preserveFocus";
-  }
-  if (id == kOptionDefaultLockToScreenState) {
-    return "defaultLockToScreenState";
-  }
-  if (id == kOptionDisableLockToScreen) {
-    return "disableLockToScreen";
-  }
-  if (id == kOptionClipboardSharing) {
-    return "clipboardSharing";
-  }
-  if (id == kOptionClipboardSharingSize) {
-    return "clipboardSharingSize";
-  }
-  return nullptr;
-}
-
-std::string Config::getOptionValue(OptionID id, OptionValue value)
-{
-  if (id == kOptionHalfDuplexCapsLock || id == kOptionHalfDuplexNumLock || id == kOptionHalfDuplexScrollLock ||
-      id == kOptionScreenSwitchNeedsShift || id == kOptionScreenSwitchNeedsControl ||
-      id == kOptionScreenSwitchNeedsAlt || id == kOptionXTestXineramaUnaware || id == kOptionRelativeMouseMoves ||
-      id == kOptionWin32KeepForeground || id == kOptionScreenPreserveFocus || id == kOptionClipboardSharing ||
-      id == kOptionClipboardSharingSize) {
-    return (value != 0) ? "true" : "false";
-  }
-  if (id == kOptionModifierMapForShift || id == kOptionModifierMapForControl || id == kOptionModifierMapForAlt ||
-      id == kOptionModifierMapForAltGr || id == kOptionModifierMapForMeta || id == kOptionModifierMapForSuper) {
-    switch (value) {
-    case kKeyModifierIDShift:
-      return "shift";
-
-    case kKeyModifierIDControl:
-      return "ctrl";
-
-    case kKeyModifierIDAlt:
-      return "alt";
-
-    case kKeyModifierIDAltGr:
-      return "altgr";
-
-    case kKeyModifierIDMeta:
-      return "meta";
-
-    case kKeyModifierIDSuper:
-      return "super";
-
-    default:
-      return "none";
-    }
-  }
-  if (id == kOptionHeartbeat || id == kOptionScreenSwitchCornerSize || id == kOptionScreenSwitchDelay ||
-      id == kOptionScreenSwitchTwoTap) {
-    return deskflow::string::sprintf("%d", value);
-  }
-  if (id == kOptionScreenSwitchCorners) {
-    std::string result("none");
-    if ((value & s_topLeftCornerMask) != 0) {
-      result += " +top-left";
-    }
-    if ((value & s_topRightCornerMask) != 0) {
-      result += " +top-right";
-    }
-    if ((value & s_bottomLeftCornerMask) != 0) {
-      result += " +bottom-left";
-    }
-    if ((value & s_bottomRightCornerMask) != 0) {
-      result += " +bottom-right";
-    }
-    return result;
-  }
-  return "";
-}
-
 //
 // Config::Name
 //
@@ -1448,7 +1113,7 @@ bool Config::Cell::add(const CellEdge &src, const CellEdge &dst)
   }
 
   m_neighbors.erase(src);
-  m_neighbors.insert(std::make_pair(src, dst));
+  m_neighbors.try_emplace(src, dst);
   return true;
 }
 
@@ -1581,23 +1246,6 @@ std::istream &operator>>(std::istream &s, Config &config)
 
 std::ostream &operator<<(std::ostream &s, const Config &config)
 {
-  // screens section
-  s << "section: screens" << std::endl;
-  for (const auto &screen : config) {
-    s << "\t" << screen.c_str() << ":" << std::endl;
-    const auto options = config.getOptions(screen);
-    if (options != nullptr && options->size() > 0) {
-      for (auto [optionId, optionValue] : *options) {
-        const char *name = Config::getOptionName(optionId);
-        std::string value = Config::getOptionValue(optionId, optionValue);
-        if (name != nullptr && !value.empty()) {
-          s << "\t\t" << name << " = " << value << std::endl;
-        }
-      }
-    }
-  }
-  s << "end" << std::endl;
-
   // links section
   std::string neighbor;
   s << "section: links" << std::endl;
@@ -1612,41 +1260,9 @@ std::ostream &operator<<(std::ostream &s, const Config &config)
   }
   s << "end" << std::endl;
 
-  // aliases section (if there are any)
-  if (config.m_map.size() != config.m_nameToCanonicalName.size()) {
-    // map canonical to alias
-    using CMNameMap = std::multimap<std::string, std::string, CaselessCmp>;
-    CMNameMap aliases;
-    for (auto index = config.m_nameToCanonicalName.begin(); index != config.m_nameToCanonicalName.end(); ++index) {
-      if (index->first != index->second) {
-        aliases.insert(std::make_pair(index->second, index->first));
-      }
-    }
-
-    // dump it
-    std::string screen;
-    s << "section: aliases" << std::endl;
-    for (CMNameMap::const_iterator index = aliases.begin(); index != aliases.end(); ++index) {
-      if (index->first != screen) {
-        screen = index->first;
-        s << "\t" << screen.c_str() << ":" << std::endl;
-      }
-      s << "\t\t" << index->second.c_str() << std::endl;
-    }
-    s << "end" << std::endl;
-  }
-
   // options section
   s << "section: options" << std::endl;
-  if (const Config::ScreenOptions *options = config.getOptions(""); options && options->size() > 0) {
-    for (auto [optionId, optionValue] : *options) {
-      const char *name = Config::getOptionName(optionId);
-      std::string value = Config::getOptionValue(optionId, optionValue);
-      if (name != nullptr && !value.empty()) {
-        s << "\t" << name << " = " << value << std::endl;
-      }
-    }
-  }
+
   if (config.m_deskflowAddress.isValid()) {
     s << "\taddress = " << config.m_deskflowAddress.getHostname().c_str() << std::endl;
   }
@@ -1711,130 +1327,6 @@ uint32_t ConfigReadContext::getLineNumber() const
 bool ConfigReadContext::operator!() const
 {
   return !m_stream;
-}
-
-OptionValue ConfigReadContext::parseBoolean(const std::string &arg) const
-{
-  if (CaselessCmp::equal(arg, "true")) {
-    return static_cast<OptionValue>(true);
-  }
-  if (CaselessCmp::equal(arg, "false")) {
-    return static_cast<OptionValue>(false);
-  }
-  throw ServerConfigReadException(*this, "invalid boolean argument \"%{1}\"", arg);
-}
-
-OptionValue ConfigReadContext::parseInt(const std::string &arg) const
-{
-  const char *s = arg.c_str();
-  char *end;
-  long tmp = strtol(s, &end, 10);
-  if (*end != '\0') {
-    // invalid characters
-    throw ServerConfigReadException(*this, "invalid integer argument \"%{1}\"", arg);
-  }
-  auto value = static_cast<OptionValue>(tmp);
-  if (value != tmp) {
-    // out of range
-    throw ServerConfigReadException(*this, "integer argument \"%{1}\" out of range", arg);
-  }
-  return value;
-}
-
-OptionValue ConfigReadContext::parseModifierKey(const std::string &arg) const
-{
-  if (CaselessCmp::equal(arg, "shift")) {
-    return static_cast<OptionValue>(kKeyModifierIDShift);
-  }
-  if (CaselessCmp::equal(arg, "ctrl")) {
-    return static_cast<OptionValue>(kKeyModifierIDControl);
-  }
-  if (CaselessCmp::equal(arg, "alt")) {
-    return static_cast<OptionValue>(kKeyModifierIDAlt);
-  }
-  if (CaselessCmp::equal(arg, "altgr")) {
-    return static_cast<OptionValue>(kKeyModifierIDAltGr);
-  }
-  if (CaselessCmp::equal(arg, "meta")) {
-    return static_cast<OptionValue>(kKeyModifierIDMeta);
-  }
-  if (CaselessCmp::equal(arg, "super")) {
-    return static_cast<OptionValue>(kKeyModifierIDSuper);
-  }
-  if (CaselessCmp::equal(arg, "none")) {
-    return static_cast<OptionValue>(kKeyModifierIDNull);
-  }
-  throw ServerConfigReadException(*this, "invalid argument \"%{1}\"", arg);
-}
-
-OptionValue ConfigReadContext::parseCorner(const std::string &arg) const
-{
-  if (CaselessCmp::equal(arg, "left")) {
-    return s_topLeftCornerMask | s_bottomLeftCornerMask;
-  } else if (CaselessCmp::equal(arg, "right")) {
-    return s_topRightCornerMask | s_bottomRightCornerMask;
-  } else if (CaselessCmp::equal(arg, "top")) {
-    return s_topLeftCornerMask | s_topRightCornerMask;
-  } else if (CaselessCmp::equal(arg, "bottom")) {
-    return s_bottomLeftCornerMask | s_bottomRightCornerMask;
-  } else if (CaselessCmp::equal(arg, "top-left")) {
-    return s_topLeftCornerMask;
-  } else if (CaselessCmp::equal(arg, "top-right")) {
-    return s_topRightCornerMask;
-  } else if (CaselessCmp::equal(arg, "bottom-left")) {
-    return s_bottomLeftCornerMask;
-  } else if (CaselessCmp::equal(arg, "bottom-right")) {
-    return s_bottomRightCornerMask;
-  } else if (CaselessCmp::equal(arg, "none")) {
-    return s_noCornerMask;
-  } else if (CaselessCmp::equal(arg, "all")) {
-    return s_allCornersMask;
-  }
-  throw ServerConfigReadException(*this, "invalid argument \"%{1}\"", arg);
-}
-
-OptionValue ConfigReadContext::parseCorners(const std::string &args) const
-{
-  // find first token
-  std::string::size_type i = args.find_first_not_of(" \t", 0);
-  if (i == std::string::npos) {
-    throw ServerConfigReadException(*this, "missing corner argument");
-  }
-  std::string::size_type j = args.find_first_of(" \t", i);
-
-  // parse first corner token
-  OptionValue corners = parseCorner(args.substr(i, j - i));
-
-  // get +/-
-  i = args.find_first_not_of(" \t", j);
-  while (i != std::string::npos) {
-    // parse +/-
-    bool add;
-    if (args[i] == '-') {
-      add = false;
-    } else if (args[i] == '+') {
-      add = true;
-    } else {
-      throw ServerConfigReadException(*this, "invalid corner operator \"%{1}\"", std::string(args.c_str() + i, 1));
-    }
-
-    // get next corner token
-    i = args.find_first_not_of(" \t", i + 1);
-    j = args.find_first_of(" \t", i);
-    if (i == std::string::npos) {
-      throw ServerConfigReadException(*this, "missing corner argument");
-    }
-
-    // parse next corner token
-    if (add) {
-      corners |= parseCorner(args.substr(i, j - i));
-    } else {
-      corners &= ~parseCorner(args.substr(i, j - i));
-    }
-    i = args.find_first_not_of(" \t", j);
-  }
-
-  return corners;
 }
 
 Config::Interval ConfigReadContext::parseInterval(const ArgList &args) const
